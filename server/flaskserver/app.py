@@ -5,6 +5,8 @@ import re
 import json
 from langchain_groq import ChatGroq
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -37,7 +39,7 @@ def get_and_enhance_transcript(youtube_url):
         llm = ChatGroq(
             model="llama-3.1-70b-versatile",
             temperature=0,
-            groq_api_key=""
+            groq_api_key=os.getenv("GROQ_API_KEY")
         )
 
         enhanced_transcript = llm.invoke(prompt)
@@ -88,7 +90,7 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         llm = ChatGroq(
             model="llama-3.1-70b-versatile",
             temperature=0,
-            groq_api_key=""
+            groq_api_key=os.getenv("GROQ_API_KEY")
         )
         response = llm.invoke(prompt)
 
