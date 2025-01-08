@@ -7,11 +7,13 @@ const statisticschema = new mongoose.Schema({
     },
     score: {
         type: Number,
-        required: true
+        required: false,
+        default: 0
     },
     totalscore: {
         type: Number,
-        required: true
+        required: false,
+        default: 0
     },
     topic: {
         type: String,
