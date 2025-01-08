@@ -1,21 +1,83 @@
 import React, { useState } from 'react';
 import { Youtube } from 'lucide-react';
+import QuizResponsePage from './QuizResponsePage'; // Import the quiz response component
+import { useNavigate } from 'react-router-dom';
 
 const QuizGenerator = () => {
   const [loading, setLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
-  };
+  const [error, setError] = useState('');
+  const [quizData, setQuizData] = useState(null);
+  
+  // Form state
+  const [youtubeLink, setYoutubeLink] = useState('');
+  const [questionCount, setQuestionCount] = useState(5);
 
   const handleDifficultySelect = (difficulty) => {
-    setSelectedDifficulty(difficulty);
+    setSelectedDifficulty(difficulty.toLowerCase());
     setIsDropdownOpen(false);
   };
+
+  const validateYoutubeUrl = (url) => {
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+    return youtubeRegex.test(url);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    // Validation
+    if (!youtubeLink) {
+      setError('Please enter a YouTube URL');
+      return;
+    }
+
+    if (!validateYoutubeUrl(youtubeLink)) {
+      setError('Please enter a valid YouTube URL');
+      return;
+    }
+
+    if (!selectedDifficulty) {
+      setError('Please select a difficulty level');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch('http://localhost:5000/quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          link: youtubeLink,
+          qno: questionCount,
+          difficulty: selectedDifficulty,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setQuizData(data);
+      
+    } catch (error) {
+      setError('Failed to generate quiz. Please try again.');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // If quiz data is available, show the quiz response page
+  if (quizData) {
+    return <QuizResponsePage quizData={quizData} />;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -36,6 +98,12 @@ const QuizGenerator = () => {
             Create Your Quiz
           </h2>
           
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
+              {error}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* YouTube Link Input */}
             <div className="space-y-2">
@@ -45,6 +113,8 @@ const QuizGenerator = () => {
               <div className="relative">
                 <input 
                   type="url" 
+                  value={youtubeLink}
+                  onChange={(e) => setYoutubeLink(e.target.value)}
                   placeholder="https://youtube.com/watch?v=..."
                   className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#00FF9D]/50 focus:ring-2 focus:ring-[#00FF9D]/20 transition-all duration-300"
                 />
@@ -61,7 +131,8 @@ const QuizGenerator = () => {
                 type="number" 
                 min="1" 
                 max="20"
-                defaultValue="5"
+                value={questionCount}
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
                 className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#00FF9D]/50 focus:ring-2 focus:ring-[#00FF9D]/20 transition-all duration-300"
               />
             </div>
@@ -101,7 +172,14 @@ const QuizGenerator = () => {
               disabled={loading}
               className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 transition-all duration-300 disabled:opacity-50 mt-4"
             >
-              {loading ? 'Generating Quiz...' : 'Generate Quiz'}
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#00FF9D] mr-2"></div>
+                  Generating Quiz...
+                </div>
+              ) : (
+                'Generate Quiz'
+              )}
             </button>
           </form>
         </div>
