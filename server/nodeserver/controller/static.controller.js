@@ -34,7 +34,8 @@ async function handlelogout(req, res) {
     res.status(200).json({ message: 'logout successful' });
 }
 async function handleregister(req, res) {
-    const { email, password, role, avatar, username, phone } = req.body;
+    console.log(req.body);
+    const { email, password, role, avatar, username, phone,highestQualification,experience,subject,certification } = req.body;
     if (!email || !password || !role || !username) {
         return res.status(400).json({ message: 'email, password, role, username are required' });
     }
@@ -52,7 +53,7 @@ async function handleregister(req, res) {
             if (user) {
                 return res.status(400).json({ message: 'teacher already exist' });
             }
-            user = await teacher.create({ email, password, avatar, username, phone });
+            user = await teacher.create({ email, password, avatar, username, phone,highestQualification,experience,subject,certification });
         }
         if (!user) {
             return res.status(400).json({ message: 'invalid role' });
