@@ -1,16 +1,45 @@
-// src/services/api.js
 import axios from 'axios';
 
-// Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:5000', // Flask server URL
+  baseURL: 'http://127.0.0.1:5000',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true
 });
 
+export const summaryService = {
+  generateSummary: async (link) => {
+    try {
+      const response = await api.post('/quiz', {
+        link,
+        qno: 1,  // Default minimum questions since we only need summary
+        difficulty: 'easy'  // Default difficulty
+      });
+      
+      if (response.data && response.data.summary) {
+        // Convert the summary object into an array of sentences
+        const summaryPoints = Object.entries(response.data.summary).map(([topic, content]) => {
+          return `${topic}: ${content}`;
+        });
+        
+        return summaryPoints;
+      } else {
+        throw new Error('Summary not found in response');
+      }
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to generate summary');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  }
+};
+
 export const quizService = {
-  // Generate quiz from YouTube video
   generateQuiz: async (link, qno, difficulty) => {
     try {
       const response = await api.post('/quiz', {
@@ -18,28 +47,25 @@ export const quizService = {
         qno,
         difficulty,
       });
-      return response.data;
+      
+      // Format the quiz data for QuizDisplay
+      const formattedQuizData = {
+        quiz: response.data.questions[difficulty].map(q => ({
+          answer: q.answer,
+          options: q.options,
+          question: q.question
+        }))
+      };
+      
+      return formattedQuizData;
     } catch (error) {
       if (error.response) {
-        // Server responded with error
         throw new Error(error.response.data.error || 'Failed to generate quiz');
       } else if (error.request) {
-        // Request made but no response
         throw new Error('No response from server');
       } else {
-        // Other errors
         throw new Error('Error setting up request');
       }
     }
-  },
-
-  // Health check endpoint
-  checkHealth: async () => {
-    try {
-      const response = await api.get('/');
-      return response.data;
-    } catch (error) {
-      throw new Error('Server health check failed');
-    }
-  },
+  }
 };

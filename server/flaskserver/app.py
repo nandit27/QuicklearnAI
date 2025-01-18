@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
+from flask_cors import CORS 
 import re
 import json
 from langchain_groq import ChatGroq
@@ -9,6 +10,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:5173", "http://localhost:3000"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 
 formatter = TextFormatter()
 
@@ -110,8 +120,11 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         print(f"Error generating summary and quiz: {str(e)}")
         return None
 
-@app.route('/quiz', methods=['POST'])
+@app.route('/quiz', methods=['POST', 'OPTIONS'])
 def quiz():
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+        
     data = request.json
     youtube_link = data.get('link')
     num_questions = data.get('qno')
@@ -137,4 +150,4 @@ def health():
     return jsonify({"status": "ok"}) 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

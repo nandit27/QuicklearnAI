@@ -11,6 +11,7 @@ import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
 import StudentDashboard from './components/StudentDashboard'
 import ProfilePage from './components/ProfilePage'
+import SummaryPage from './pages/SummaryPage'
 
 function Home() {
   const contentRef = useRef()
@@ -84,6 +85,7 @@ function App() {
           <Route path="/dashboard" element={<StudentDashboard />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/quiz" element={<QuizGenerator />} />
+          <Route path="/summary" element={<SummaryPage />} />
         </Routes>
         
         <LoginModal 

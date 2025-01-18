@@ -1,6 +1,6 @@
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const { oauth2Client } = require('../utils/googleClient');
+const { oauth2Client } = require('../utils/googleclient');
 const Student = require('../models/student.model');
 
 

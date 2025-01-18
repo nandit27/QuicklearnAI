@@ -19,7 +19,7 @@ function Navbar({ onSignUpClick, onLoginClick}) {
             
             <div className="hidden md:flex items-center space-x-8">
               <a href="#" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Product</a>
-              <a href="#" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Pricing</a>
+              <Link to="/summary" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Pricing</Link>
               <Link to="/quiz" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Chat With QuickLearnAI</Link>
             </div>
             

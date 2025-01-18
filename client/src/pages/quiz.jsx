@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Youtube } from 'lucide-react';
-import QuizResponsePage from './QuizResponsePage'; // Import the quiz response component
 import { useNavigate } from 'react-router-dom';
+import QuizDisplay from '../components/QuizDisplay';
+import { quizService } from '../services/api';
 
 const QuizGenerator = () => {
   const [loading, setLoading] = useState(false);
@@ -9,6 +10,7 @@ const QuizGenerator = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [error, setError] = useState('');
   const [quizData, setQuizData] = useState(null);
+  const [showQuiz, setShowQuiz] = useState(false);
   
   // Form state
   const [youtubeLink, setYoutubeLink] = useState('');
@@ -46,25 +48,14 @@ const QuizGenerator = () => {
 
     try {
       setLoading(true);
-
-      const response = await fetch('http://localhost:5000/quiz', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          link: youtubeLink,
-          qno: questionCount,
-          difficulty: selectedDifficulty,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setQuizData(data);
+      const formattedQuizData = await quizService.generateQuiz(
+        youtubeLink,
+        questionCount,
+        selectedDifficulty
+      );
+      
+      setQuizData(formattedQuizData);
+      setShowQuiz(true);
       
     } catch (error) {
       setError('Failed to generate quiz. Please try again.');
@@ -74,9 +65,20 @@ const QuizGenerator = () => {
     }
   };
 
-  // If quiz data is available, show the quiz response page
-  if (quizData) {
-    return <QuizResponsePage quizData={quizData} />;
+  const handleQuizFinish = (score) => {
+    // You can add logic here to handle the quiz score
+    console.log(`Quiz finished with score: ${score}`);
+    setShowQuiz(false);
+    setQuizData(null);
+    // Reset form
+    setYoutubeLink('');
+    setSelectedDifficulty('');
+    setQuestionCount(5);
+  };
+
+  // Show quiz if data is available
+  if (showQuiz && quizData) {
+    return <QuizDisplay quizData={quizData} onFinish={handleQuizFinish} />;
   }
 
   return (

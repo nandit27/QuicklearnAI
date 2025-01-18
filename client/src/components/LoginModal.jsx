@@ -9,52 +9,58 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
   const [activeTab, setActiveTab] = useState('student');
   const navigate = useNavigate();
 
-  // const googleAuth = async (code) => {
-  //   return axios.get(`${import.meta.env.VITE_API_URL}/user/auth/google?code=${code}`, {
-  //     params: { role: activeTab }
-  //   });
-  // };
   const api = axios.create({
     baseURL: "http://localhost:3000/user/auth",
-    // withCredentials: true,
-});
+    withCredentials: true,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    }
+  });
 
-const googleAuth = (code) => api.get(`/google?code=${code}`);
+  const googleAuth = async (code) => {
+    try {
+      const response = await api.get(`/google?code=${code}`);
+      return response;
+    } catch (error) {
+      console.error('Google auth error:', error);
+      throw error;
+    }
+  };
 
   const responseGoogle = async (authResult) => {
     try {
       if (authResult["code"]) {
-        console.log(authResult["code"]);
         console.log("Google Login Code:", authResult);
         const result = await googleAuth(authResult.code);
         console.log('Google Login Result:', result);
         
-        const { email, username, avatar } = result.data.user;
-        const token = result.data.token;
-        const obj = { email, username, token, avatar };
-        
-        localStorage.setItem('user-info', JSON.stringify(obj));
-        onClose();
-        navigate('/dashboard');
+        if (result.data && result.data.user) {
+          const { email, username, avatar } = result.data.user;
+          const token = result.data.token;
+          const obj = { email, username, token, avatar };
+          
+          localStorage.setItem('user-info', JSON.stringify(obj));
+          onClose();
+          navigate('/dashboard');
+        }
       } else {
-        console.log(authResult);
-        throw new Error(authResult);
+        throw new Error('No authorization code present');
       }
     } catch (e) {
-      console.log('Error while Google Login...', e);
+      console.error('Error during Google Login:', e);
     }
   };
 
   const googleLogin = useGoogleLogin({
     onSuccess: responseGoogle,
-    onError: responseGoogle,
+    onError: (error) => {
+      console.error('Google Login Error:', error);
+    },
     flow: "auth-code",
+    popup: true, // Enable popup mode
+    ux_mode: "popup", // Explicitly set UX mode to popup
   });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Handle login logic here
-  };
 
   return (
     <Dialog open={isOpen} onClose={onClose}>
@@ -76,7 +82,7 @@ const googleAuth = (code) => api.get(`/google?code=${code}`);
         </TabsList>
 
         <TabContent value="student" selected={activeTab === 'student'}>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form className="space-y-4">
             {/* Email and Password fields */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
