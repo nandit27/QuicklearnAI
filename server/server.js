@@ -1,6 +1,7 @@
 const dotenv = require("dotenv");
 dotenv.config();
 const express = require('express');
+const morgan = require('morgan');
 const cors = require('cors')
 const app = express();
 const { createProxyMiddleware } = require('http-proxy-middleware');
@@ -14,9 +15,9 @@ const corsOptions = {
     optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions))
-
-app.use('/gen', createProxyMiddleware({ target: 'http://localhost:5000', changeOrigin: true }));
-app.use('/user', createProxyMiddleware({ target: 'http://localhost:3001', changeOrigin: true }));
+app.use(morgan("[:date[clf]] :method :url :status :res[content-length] - :response-time ms"));
+app.use('/gen', createProxyMiddleware({ target: process.env.GEN_PROXY, changeOrigin: true }));
+app.use('/user', createProxyMiddleware({ target: process.env.USER_PROXY, changeOrigin: true }));
 
 app.listen(port, () => {
     console.log(`server is running on port http://localhost:${port}`);

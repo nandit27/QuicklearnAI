@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth.routes');
 const staticRoutes = require('./routes/static.routes');
 const storestatisticRoutes = require('./routes/user.routes');
 
+const morgan = require('morgan');
 app.use(express.json());
 app.use(cors());
 
@@ -14,6 +15,7 @@ app.get('/', (req, res) => {
     res.send({ message: 'ok' });
 });
 
+app.use(morgan("[:date[clf]] :method :url :status :res[content-length] - :response-time ms"));
 app.use('/auth', authRoutes);
 app.use('/', staticRoutes);
 app.use('/user', storestatisticRoutes);
