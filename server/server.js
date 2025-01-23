@@ -16,9 +16,10 @@ const corsOptions = {
 };
 app.use(cors(corsOptions))
 app.use(morgan("[:date[clf]] :method :url :status :res[content-length] - :response-time ms"));
-app.use('/gen', createProxyMiddleware({ target: process.env.GEN_PROXY, changeOrigin: true }));
-app.use('/user', createProxyMiddleware({ target: process.env.USER_PROXY, changeOrigin: true }));
+app.use('/gen', createProxyMiddleware({ target: process.env.GEN_PROXY, changeOrigin: true}));
+app.use('/user', createProxyMiddleware({ target: process.env.USER_PROXY, changeOrigin: true}));
+
 
 app.listen(port, () => {
-    console.log(`server is running on port http://localhost:${port}`);
+    console.log(`Server is running on port http://localhost:${port}`);
 });

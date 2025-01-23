@@ -97,6 +97,30 @@ const QuizGenerator = () => {
     setShowQuiz(false);
   };
 
+  // Add this function to handle summary regeneration
+  const handleGenerateSummary = async () => {
+    try {
+      setLoading(true);
+      const response = await quizService.generateQuiz(
+        youtubeLink,
+        questionCount,
+        selectedDifficulty
+      );
+      
+      if (!response || !response.summary) {
+        throw new Error('Invalid summary data format');
+      }
+      
+      setSummaryData(response.summary);
+      
+    } catch (error) {
+      setError(error.message || 'Failed to regenerate summary. Please try again.');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Show quiz if active
   if (showQuiz && quizData) {
     return <QuizDisplay 
@@ -129,18 +153,32 @@ const QuizGenerator = () => {
             ))}
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-4">
             <button
               onClick={() => setShowSummary(false)}
-              className="w-full max-w-md mx-auto block bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300 mr-4"
+              className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
             >
               Back to Quiz Generator
             </button>
             <button
               onClick={handleStartQuiz}
-              className="w-full max-w-md mx-auto block bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
+              className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
             >
               Start Quiz
+            </button>
+            <button
+              onClick={handleGenerateSummary}
+              disabled={loading}
+              className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#00FF9D] mr-2"></div>
+                  Regenerating...
+                </div>
+              ) : (
+                'Regenerate Summary'
+              )}
             </button>
           </div>
         </div>

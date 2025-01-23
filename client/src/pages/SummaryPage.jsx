@@ -84,11 +84,18 @@ const SummaryPage = () => {
         </Card>
 
         {summaries.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            {summaries.map((summary, index) => (
-              <FlashCard key={index} content={summary} />
-            ))}
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {summaries.map((summary, index) => (
+                <FlashCard 
+                  key={index} 
+                  title={`Key Point ${index + 1}`}
+                  content={summary} 
+                />
+              ))}
+            </div>
           </div>
+          
         )}
       </div>
     </div>

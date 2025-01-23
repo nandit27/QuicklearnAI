@@ -7,6 +7,7 @@ import axios from 'axios';
 
 const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
   const [activeTab, setActiveTab] = useState('student');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const googleAuth = async (code) => {
@@ -61,6 +62,36 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
     redirect_uri: window.location.origin,
   });
 
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    data.role = activeTab;
+
+    try {
+      const response = await axios.post('http://localhost:3001/login', data, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true
+      });
+
+      // Store user info in localStorage
+      localStorage.setItem('user-info', JSON.stringify(response.data));
+      
+      onClose();
+      navigate('/dashboard');
+      
+      // Trigger page reload to update UI
+      window.location.reload();
+    } catch (error) {
+      setError(error.response?.data?.message || 'Login failed');
+      console.error('Login error:', error);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onClose={onClose}>
       {/* Rest of your dialog content */}
@@ -81,7 +112,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
         </TabsList>
 
         <TabContent value="student" selected={activeTab === 'student'}>
-          <form className="space-y-4">
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
             {/* Email and Password fields */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
@@ -89,6 +120,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               </label>
               <input
                 type="email"
+                name="email"
                 placeholder="student@example.com"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
               />
@@ -99,6 +131,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               </label>
               <input
                 type="password"
+                name="password"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
               />
             </div>
@@ -117,7 +150,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
             {/* Google Login Button */}
             <div className="text-center">
               <button
-                onClick={ googleLogin}
+                onClick={googleLogin}
                 type="button"
                 className="w-full py-2 px-4 bg-white text-gray-800 rounded-lg flex items-center justify-center space-x-2 hover:bg-gray-100 transition-colors"
               >

@@ -2,14 +2,47 @@ import React, { useState } from 'react';
 import { Upload } from 'lucide-react';
 import Dialog from './Dialog';
 import { Tabs, TabsList, TabTrigger, TabContent } from './Tabs';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('student');
   const [fileName, setFileName] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle signup logic here
+    setError('');
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    data.role = activeTab;
+
+    // Generate avatar URL using username
+    data.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.username)}`;
+
+    try {
+      const response = await axios.post('http://localhost:3001/register', data, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true
+      });
+
+      // Store user info in localStorage
+      localStorage.setItem('user-info', JSON.stringify(response.data));
+      
+      // Close modal and redirect
+      onClose();
+      navigate('/dashboard');
+      
+      // Trigger page reload to update UI
+      window.location.reload();
+    } catch (error) {
+      setError(error.response?.data?.message || 'Registration failed');
+      console.error('Registration error:', error);
+    }
   };
 
   const handleFileChange = (e) => {
