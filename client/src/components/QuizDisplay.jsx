@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, ChevronRight } from 'lucide-react';
+import CircularTimer from './CircularTimer';
 
 const QuizDisplay = ({ quizData, onFinish }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [isFinished, setIsFinished] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState(Array(quizData.quiz.length).fill(null));
+  const [showResults, setShowResults] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
   const [error, setError] = useState(null);
+  const [startTime] = useState(Date.now());
 
   // Validate quiz data structure
   useEffect(() => {
@@ -26,38 +26,74 @@ const QuizDisplay = ({ quizData, onFinish }) => {
   }, [quizData]);
 
   useEffect(() => {
-    if (timeLeft > 0 && !isFinished) {
+    if (timeLeft > 0 && !showResults) {
       const timer = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
       return () => clearInterval(timer);
     } else if (timeLeft === 0) {
-      handleNext();
+      handleTimeUp();
     }
   }, [timeLeft]);
 
   useEffect(() => {
-    setTimeLeft(30);
+    setTimeLeft(60);
   }, [currentQuestion]);
 
-  const handleOptionSelect = (optionIndex) => {
-    setSelectedAnswer(optionIndex);
+  // Handle answer selection
+  const handleAnswerSelect = (selectedOption) => {
+    setSelectedAnswers(prev => {
+      const newAnswers = [...prev];
+      newAnswers[currentQuestion] = selectedOption;
+      return newAnswers;
+    });
   };
 
-  const handleNext = () => {
-    if (selectedAnswer !== null) {
-      const currentQuiz = quizData.quiz[currentQuestion];
-      if (currentQuiz.options[selectedAnswer] === currentQuiz.answer) {
-        setScore(score + 1);
+  // Handle moving to next question
+  const handleNextQuestion = () => {
+    if (selectedAnswers[currentQuestion] !== null) {
+      if (currentQuestion < quizData.quiz.length - 1) {
+        setCurrentQuestion(prev => prev + 1);
+      } else {
+        showQuizResults();
       }
     }
+  };
 
-    if (currentQuestion < quizData.quiz.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(null);
-    } else {
-      setIsFinished(true);
+  // Handle time up
+  const handleTimeUp = () => {
+    if (selectedAnswers[currentQuestion] === null) {
+      setSelectedAnswers(prev => {
+        const newAnswers = [...prev];
+        newAnswers[currentQuestion] = "Not answered";
+        return newAnswers;
+      });
     }
+    
+    if (currentQuestion < quizData.quiz.length - 1) {
+      setCurrentQuestion(prev => prev + 1);
+    } else {
+      showQuizResults();
+    }
+  };
+
+  // Show final results
+  const showQuizResults = () => {
+    setShowResults(true);
+  };
+
+  // Calculate score
+  const calculateScore = () => {
+    return selectedAnswers.reduce((acc, answer, index) => {
+      if (!answer || answer === "Not answered") return acc;
+      return acc + (answer === quizData.quiz[index].answer ? 1 : 0);
+    }, 0);
+  };
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
   // Show error state
@@ -79,19 +115,53 @@ const QuizDisplay = ({ quizData, onFinish }) => {
   }
 
   // Show completion state
-  if (isFinished) {
+  if (showResults) {
+    const score = calculateScore();
+    const timeSpent = formatTime(Math.floor((Date.now() - startTime) / 1000));
+    
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="w-full max-w-2xl bg-black/40 backdrop-blur-md rounded-2xl p-8 border border-white">
-          <h2 className="text-3xl font-bold text-center mb-6 text-[#00FF9D]">Quiz Completed!</h2>
-          <p className="text-xl text-center mb-8">
-            Your score: {score} out of {quizData.quiz.length}
-          </p>
+      <div className="min-h-screen bg-black text-white pt-24">
+        <div className="max-w-4xl mx-auto p-8">
+          <div className="text-center mb-12">
+            <h2 className="text-6xl font-bold mb-4">
+              YOUR SCORE: <span className="text-[#00FF9D]">{score}/{quizData.quiz.length}</span>
+            </h2>
+            <p className="text-2xl text-gray-400">
+              Time utilised: {formatTime(Math.floor((Date.now() - startTime) / 1000))}
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 gap-4 mb-4 text-xl font-bold">
+              <div>Questions</div>
+              <div>Your Answer</div>
+              <div>Correct Answer</div>
+            </div>
+            
+            {quizData.quiz.map((question, index) => {
+              const userAnswer = selectedAnswers[index] || "Not answered";
+              return (
+                <div 
+                  key={index}
+                  className={`grid grid-cols-3 gap-4 p-4 rounded-lg ${
+                    userAnswer === question.answer 
+                      ? 'bg-green-500/10 border border-green-500/30'
+                      : 'bg-red-500/10 border border-red-500/30'
+                  }`}
+                >
+                  <div>{question.question}</div>
+                  <div>{userAnswer}</div>
+                  <div>{question.answer}</div>
+                </div>
+              );
+            })}
+          </div>
+
           <button
-            onClick={() => onFinish(score)}
-            className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
+            onClick={() => onFinish(score, timeSpent, selectedAnswers)}
+            className="mt-8 w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
           >
-            Finish Quiz
+            Back to Quiz Generator
           </button>
         </div>
       </div>
@@ -112,34 +182,30 @@ const QuizDisplay = ({ quizData, onFinish }) => {
   const currentQuiz = quizData.quiz[currentQuestion];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-black text-white pt-24">
+      <div className="max-w-4xl mx-auto p-8">
+        {/* Timer and Progress */}
         <div className="flex justify-between items-center mb-8">
-          <div className="text-xl font-semibold">
-            Quiz
-          </div>
-          <div className="flex items-center gap-2 text-[#00FF9D]">
-            <Timer className="w-5 h-5" />
-            <span>{timeLeft}s</span>
-          </div>
           <div className="text-xl">
-            <span className="text-[#00FF9D]">{currentQuestion + 1}</span>/{quizData.quiz.length}
+            Question {currentQuestion + 1}/{quizData.quiz.length}
           </div>
+          <CircularTimer 
+            key={currentQuestion}
+            duration={60} 
+            onTimeUp={handleTimeUp}
+          />
         </div>
 
-        <div className="w-full max-w-4xl mx-auto bg-black/40 backdrop-blur-md rounded-2xl p-8 border border-white">
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold mb-2">Question {currentQuestion + 1}</h2>
-            <p className="text-gray-300">{currentQuiz.question}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        {/* Question */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">{currentQuiz.question}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {currentQuiz.options.map((option, index) => (
               <button
                 key={index}
-                onClick={() => handleOptionSelect(index)}
+                onClick={() => handleAnswerSelect(option)}
                 className={`p-4 rounded-xl border text-left transition-all duration-300 ${
-                  selectedAnswer === index
+                  selectedAnswers[currentQuestion] === option
                     ? 'border-[#00FF9D] bg-[#00FF9D]/10 text-[#00FF9D]'
                     : 'border-white/10 hover:border-[#00FF9D]/50 hover:bg-[#00FF9D]/5'
                 }`}
@@ -148,16 +214,16 @@ const QuizDisplay = ({ quizData, onFinish }) => {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={handleNext}
-            disabled={selectedAnswer === null}
-            className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {currentQuestion === quizData.quiz.length - 1 ? 'Submit' : 'Next Question'}
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
+
+        {/* Navigation */}
+        <button
+          onClick={handleNextQuestion}
+          disabled={!selectedAnswers[currentQuestion]}
+          className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300 disabled:opacity-50"
+        >
+          {currentQuestion === quizData.quiz.length - 1 ? 'Finish Quiz' : 'Next Question'}
+        </button>
       </div>
     </div>
   );

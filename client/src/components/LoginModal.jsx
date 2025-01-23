@@ -9,18 +9,15 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
   const [activeTab, setActiveTab] = useState('student');
   const navigate = useNavigate();
 
-  const api = axios.create({
-    baseURL: "http://localhost:3000/user/auth",
-    withCredentials: true,
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    }
-  });
-
   const googleAuth = async (code) => {
     try {
-      const response = await api.get(`/google?code=${code}`);
+      const response = await axios.get(`http://localhost:3001/auth/google?code=${code}`, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        }
+      });
       return response;
     } catch (error) {
       console.error('Google auth error:', error);
@@ -43,6 +40,8 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
           localStorage.setItem('user-info', JSON.stringify(obj));
           onClose();
           navigate('/dashboard');
+        } else {
+          throw new Error('Invalid response format from server');
         }
       } else {
         throw new Error('No authorization code present');
@@ -58,8 +57,8 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
       console.error('Google Login Error:', error);
     },
     flow: "auth-code",
-    popup: true, // Enable popup mode
-    ux_mode: "popup", // Explicitly set UX mode to popup
+    scope: "email profile",
+    redirect_uri: window.location.origin,
   });
 
   return (

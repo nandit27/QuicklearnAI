@@ -48,16 +48,16 @@ export const quizService = {
         difficulty,
       });
       
-      // Format the quiz data for QuizDisplay
-      const formattedQuizData = {
-        quiz: response.data.questions[difficulty].map(q => ({
-          answer: q.answer,
-          options: q.options,
-          question: q.question
-        }))
+      if (!response.data || !response.data.questions || !response.data.summary) {
+        throw new Error('Invalid response format from server');
+      }
+
+      // Return both summary and quiz data in the expected format
+      return {
+        summary: response.data.summary,
+        quiz: response.data.questions[difficulty]
       };
       
-      return formattedQuizData;
     } catch (error) {
       if (error.response) {
         throw new Error(error.response.data.error || 'Failed to generate quiz');

@@ -1,40 +1,24 @@
 const dotenv = require("dotenv");
 dotenv.config();
 const express = require('express');
-const cors = require('cors');
+const morgan = require('morgan');
+const cors = require('cors')
+const app = express();
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
-const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS middleware
-app.use(cors({
-    origin: 'http://localhost:5173',
+const corsOptions = {
+    origin: process.env.FRONTEND_URL,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// Proxy middleware configuration
-const proxyOptions = {
-    target: 'http://localhost:5000',
-    changeOrigin: true,
-    pathRewrite: {
-        '^/gen': '' // Remove /gen prefix when forwarding to Flask
-    },
-    onProxyReq: (proxyReq, req, res) => {
-        // Add any necessary headers to the proxied request
-        proxyReq.setHeader('origin', 'http://localhost:5000');
-    },
-    onProxyRes: (proxyRes, req, res) => {
-        // Ensure CORS headers are set correctly
-        proxyRes.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173';
-        proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
-    }
+    optionsSuccessStatus: 204
 };
-
-app.use('/gen', createProxyMiddleware(proxyOptions));
+app.use(cors(corsOptions))
+app.use(morgan("[:date[clf]] :method :url :status :res[content-length] - :response-time ms"));
+app.use('/gen', createProxyMiddleware({ target: process.env.GEN_PROXY, changeOrigin: true }));
+app.use('/user', createProxyMiddleware({ target: process.env.USER_PROXY, changeOrigin: true }));
 
 app.listen(port, () => {
-    console.log(`Proxy server running on http://localhost:${port}`);
+    console.log(`server is running on port http://localhost:${port}`);
 });

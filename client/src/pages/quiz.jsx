@@ -3,6 +3,7 @@ import { Youtube } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import QuizDisplay from '../components/QuizDisplay';
 import { quizService } from '../services/api';
+import FlashCard from '../components/FlashCard';
 
 const QuizGenerator = () => {
   const [loading, setLoading] = useState(false);
@@ -11,6 +12,10 @@ const QuizGenerator = () => {
   const [error, setError] = useState('');
   const [quizData, setQuizData] = useState(null);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const [quizStats, setQuizStats] = useState(null);
+  const [showStats, setShowStats] = useState(false);
   
   // Form state
   const [youtubeLink, setYoutubeLink] = useState('');
@@ -48,42 +53,158 @@ const QuizGenerator = () => {
 
     try {
       setLoading(true);
-      const formattedQuizData = await quizService.generateQuiz(
+      const response = await quizService.generateQuiz(
         youtubeLink,
         questionCount,
         selectedDifficulty
       );
       
-      setQuizData(formattedQuizData);
-      setShowQuiz(true);
+      console.log('Quiz Response:', response);
+      
+      if (!response || !response.quiz || !response.summary) {
+        throw new Error('Invalid quiz data format');
+      }
+      
+      setQuizData({
+        quiz: response.quiz,
+        userAnswers: new Array(response.quiz.length).fill(null)
+      });
+      setSummaryData(response.summary);
+      setShowSummary(true);
       
     } catch (error) {
-      setError('Failed to generate quiz. Please try again.');
+      setError(error.message || 'Failed to generate quiz. Please try again.');
       console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuizFinish = (score) => {
-    // You can add logic here to handle the quiz score
-    console.log(`Quiz finished with score: ${score}`);
-    setShowQuiz(false);
-    setQuizData(null);
-    // Reset form
-    setYoutubeLink('');
-    setSelectedDifficulty('');
-    setQuestionCount(5);
+  const handleStartQuiz = () => {
+    setShowSummary(false);
+    setShowQuiz(true);
   };
 
-  // Show quiz if data is available
+  const handleQuizFinish = (score, timeSpent, userAnswers) => {
+    setQuizStats({
+      score,
+      totalQuestions: quizData.quiz.length,
+      timeSpent,
+      questions: quizData.quiz,
+      userAnswers: userAnswers
+    });
+    setShowStats(true);
+    setShowQuiz(false);
+  };
+
+  // Show quiz if active
   if (showQuiz && quizData) {
-    return <QuizDisplay quizData={quizData} onFinish={handleQuizFinish} />;
+    return <QuizDisplay 
+      quizData={quizData}
+      onFinish={handleQuizFinish} 
+    />;
+  }
+
+  // Show summary if available
+  if (showSummary && summaryData) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-24">
+        <div className="max-w-4xl mx-auto p-8">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold mb-4">
+              Video <span className="text-[#00FF9D]">Summary</span>
+            </h1>
+            <p className="text-gray-400">
+              Here's what we learned from the video
+            </p>
+          </div>
+
+          <div className="space-y-6 mb-12">
+            {Object.entries(summaryData).map(([key, value]) => (
+              <FlashCard 
+                key={key}
+                title={key}
+                content={value}
+              />
+            ))}
+          </div>
+
+          <div className="flex justify-between">
+            <button
+              onClick={() => setShowSummary(false)}
+              className="w-full max-w-md mx-auto block bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300 mr-4"
+            >
+              Back to Quiz Generator
+            </button>
+            <button
+              onClick={handleStartQuiz}
+              className="w-full max-w-md mx-auto block bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
+            >
+              Start Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show stats if available
+  if (showStats && quizStats) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-24">
+        <div className="max-w-4xl mx-auto p-8">
+          <div className="text-center mb-12">
+            <h2 className="text-6xl font-bold mb-4">
+              YOUR SCORE: <span className="text-[#00FF9D]">{quizStats.score}/{quizStats.totalQuestions}</span>
+            </h2>
+            <p className="text-2xl text-gray-400">
+              Time utilised: {quizStats.timeSpent}
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 gap-4 mb-4 text-xl font-bold">
+              <div>Questions</div>
+              <div>Your Answer</div>
+              <div>Correct Answer</div>
+            </div>
+            
+            {quizStats.questions.map((question, index) => (
+              <div 
+                key={index}
+                className={`grid grid-cols-3 gap-4 p-4 rounded-lg ${
+                  quizStats.userAnswers[index] === question.answer 
+                    ? 'bg-green-500/10 border border-green-500/30'
+                    : 'bg-red-500/10 border border-red-500/30'
+                }`}
+              >
+                <div>{question.question}</div>
+                <div>{quizStats.userAnswers[index] || 'Not answered'}</div>
+                <div>{question.answer}</div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              setShowStats(false);
+              setQuizData(null);
+              setYoutubeLink('');
+              setSelectedDifficulty('');
+              setQuestionCount(5);
+            }}
+            className="mt-8 w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
+          >
+            Back to Quiz Generator
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="flex flex-col items-center px-4 py-16">
+    <div className="min-h-screen bg-black text-white pt-24">
+      <div className="flex flex-col items-center px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
           <h1 className="text-6xl font-bold mb-4 text-white mt-12">
