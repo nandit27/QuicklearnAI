@@ -2,8 +2,8 @@ const jwt = require('jsonwebtoken');
 
 function verifyUser(req, res, next) {
 
-    const cookies = req.headers.cookie;
-    const token = cookies ? cookies.split('=')[1] : null;
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.split('Bearer ')[1] : null;
     if (token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);

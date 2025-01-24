@@ -1,4 +1,13 @@
-Flask==2.3.2
-youtube-transcript-api==0.4.3
-langchain-groq==0.0.1
-requests==2.31.0
+Flask
+youtube_transcript_api
+transformers
+sentence_transformers
+faiss-cpu
+numpy
+pdfplumber
+python-pptx
+werkzeug
+pymongo
+PyJWT
+langchain-groq
+google-generativeai
