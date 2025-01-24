@@ -1,99 +1,152 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import axios from 'axios';
+import { statisticsService } from '@/services/api';
 
 const ProfilePage = () => {
-  const userDetails = {
-    name: "Student Name",
-    email: "student@example.com",
-    joinDate: "January 2024",
-    completedTopics: 12,
-    totalTopics: 20,
-  };
+  const [statistics, setStatistics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const recentActivity = [
-    { topic: "Introduction to AI", score: 95, date: "2024-01-15" },
-    { topic: "Machine Learning Basics", score: 88, date: "2024-01-20" },
-    { topic: "Neural Networks", score: 92, date: "2024-01-25" },
-  ];
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        setLoading(true);
+        const data = await statisticsService.getStatistics();
+        setStatistics(data || []);
+        setError(null);
+      } catch (error) {
+        console.error('Failed to fetch statistics:', error);
+        setStatistics([]);
+        setError(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00FF9D]"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white p-8 flex items-center justify-center">
+        <div className="text-red-400 text-center">
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate statistics
+  const totalQuizzes = statistics.length;
+  const averageScore = statistics.length > 0
+    ? Math.round(statistics.reduce((acc, stat) => acc + (stat.score / stat.totalscore * 100), 0) / totalQuizzes)
+    : 0;
+
+  // Get recent activities (last 5)
+  const recentActivity = statistics
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="min-h-screen bg-black text-white p-8 mt-24">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Profile Header */}
-        <Card className="bg-gray-900 border-gray-800">
+        <Card className="bg-black/40 backdrop-blur-md border border-white/10">
           <CardHeader className="flex flex-row items-center space-x-6">
             <Avatar className="h-24 w-24">
-              <AvatarImage src="/api/placeholder/150/150" alt={userDetails.name} />
-              <AvatarFallback>SN</AvatarFallback>
+              <AvatarImage src="/default-avatar.png" />
+              <AvatarFallback className="bg-emerald-400/10 text-emerald-400">US</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">{userDetails.name}</CardTitle>
+              <CardTitle className="text-2xl">Your Learning Journey</CardTitle>
               <CardDescription className="text-gray-400">
-                Member since {userDetails.joinDate}
+                Track your progress and achievements
               </CardDescription>
             </div>
           </CardHeader>
         </Card>
 
-        {/* Progress Overview */}
+        {/* Statistics Overview */}
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-black/40 backdrop-blur-md border border-white/10">
             <CardHeader>
-              <CardTitle>Learning Progress</CardTitle>
-              <CardDescription>Your overall course completion</CardDescription>
+              <CardTitle className="text-emerald-400">Performance Overview</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <Progress 
-                  value={(userDetails.completedTopics / userDetails.totalTopics) * 100} 
-                  className="h-2 bg-gray-700"
+                  value={averageScore} 
+                  className="h-2 bg-black/50"
                 />
                 <p className="text-sm text-gray-400">
-                  {userDetails.completedTopics} of {userDetails.totalTopics} topics completed
+                  Average Score: {averageScore}%
+                </p>
+                <p className="text-sm text-gray-400">
+                  Total Quizzes Completed: {totalQuizzes}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-black/40 backdrop-blur-md border border-white/10">
             <CardHeader>
-              <CardTitle>Profile Details</CardTitle>
-              <CardDescription>Your account information</CardDescription>
+              <CardTitle className="text-emerald-400">Topics Covered</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <p><span className="text-gray-400">Email:</span> {userDetails.email}</p>
-                <p><span className="text-gray-400">Topics Completed:</span> {userDetails.completedTopics}</p>
-                <p><span className="text-gray-400">Average Score:</span> 91.67%</p>
+                {Array.from(new Set(statistics.map(stat => stat.topic))).map((topic, index) => (
+                  <div key={index} className="text-sm text-gray-400">
+                    • {topic}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Recent Activity */}
-        <Card className="bg-gray-900 border-gray-800">
+        <Card className="bg-black/40 backdrop-blur-md border border-white/10">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest learning achievements</CardDescription>
+            <CardTitle className="text-emerald-400">Recent Activity</CardTitle>
+            <CardDescription>Your latest quiz results</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow className="border-gray-800">
-                  <TableHead>Topic</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Date</TableHead>
+                <TableRow className="border-white/10">
+                  <TableHead className="text-emerald-400">Topic</TableHead>
+                  <TableHead className="text-emerald-400">Score</TableHead>
+                  <TableHead className="text-emerald-400">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recentActivity.map((activity, index) => (
-                  <TableRow key={index} className="border-gray-800">
-                    <TableCell>{activity.topic}</TableCell>
-                    <TableCell>{activity.score}%</TableCell>
-                    <TableCell>{activity.date}</TableCell>
+                  <TableRow key={index} className="border-white/10">
+                    <TableCell className="text-gray-300">{activity.topic}</TableCell>
+                    <TableCell className="text-gray-300">
+                      {Math.round((activity.score / activity.totalscore) * 100)}%
+                    </TableCell>
+                    <TableCell className="text-gray-300">
+                      {new Date(activity.createdAt).toLocaleDateString()}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

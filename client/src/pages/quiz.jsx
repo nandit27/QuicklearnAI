@@ -4,8 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import QuizDisplay from '../components/QuizDisplay';
 import { quizService } from '../services/api';
 import FlashCard from '../components/FlashCard';
+import { useToast } from "@/components/ui/use-toast";
+import { statisticsService } from '../services/api';
 
 const QuizGenerator = () => {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
@@ -85,7 +88,7 @@ const QuizGenerator = () => {
     setShowQuiz(true);
   };
 
-  const handleQuizFinish = (score, timeSpent, userAnswers) => {
+  const handleQuizFinish = async (score, timeSpent, userAnswers) => {
     setQuizStats({
       score,
       totalQuestions: quizData.quiz.length,
@@ -93,6 +96,35 @@ const QuizGenerator = () => {
       questions: quizData.quiz,
       userAnswers: userAnswers
     });
+
+    try {
+      // Log the data being sent
+      const statisticsData = {
+        pasturl: youtubeLink,
+        score: score,
+        totalscore: quizData.quiz.length,
+        topic: summaryData.title || 'General Knowledge',
+        student: 'Nandit'
+      };
+      console.log('Sending statistics data:', statisticsData);
+
+      const response = await statisticsService.storeStatistics(statisticsData);
+      console.log('Statistics stored successfully:', response);
+      
+      toast({
+        title: "Success",
+        description: "Quiz results saved successfully",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Failed to store quiz statistics:', error.response?.data || error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to save quiz results. Please try again.",
+        variant: "destructive",
+      });
+    }
+
     setShowStats(true);
     setShowQuiz(false);
   };

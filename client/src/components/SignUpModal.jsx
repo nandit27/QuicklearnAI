@@ -79,6 +79,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="text"
+                name="username"
                 placeholder="John Doe"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 required
@@ -92,6 +93,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="tel"
+                name="phone"
                 placeholder="1234567890"
                 pattern="[0-9]{10}"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
@@ -106,7 +108,22 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="email"
+                name="email"
                 placeholder="student@example.com"
+                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                required
+              />
+            </div>
+
+            {/* Student Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                placeholder="Enter your password"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 required
               />
@@ -130,6 +147,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="text"
+                name="username"
                 placeholder="Dr. Jane Smith"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 required
@@ -143,6 +161,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="email"
+                name="email"
                 placeholder="teacher@example.com"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 required
@@ -156,6 +175,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="tel"
+                name="phone"
                 placeholder="1234567890"
                 pattern="[0-9]{10}"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
@@ -169,6 +189,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 Highest Qualification
               </label>
               <select
+                name="highestQualification"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 required
               >
@@ -213,6 +234,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <input
                 type="number"
+                name="experience"
                 min="0"
                 max="50"
                 placeholder="5"
@@ -227,6 +249,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 Preferred Subject
               </label>
               <select
+                name="subject"
                 className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 required
               >

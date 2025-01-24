@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Features from './components/Features'
@@ -59,27 +59,19 @@ function Home() {
 function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSignUpModal, setShowSignUpModal] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const handleLogin = () => {
     setShowLoginModal(false);
-    setIsLoggedIn(true);
   };
 
   const NavbarWrapper = () => {
     const navigate = useNavigate();
-    
-    useEffect(() => {
-      if (isLoggedIn) {
-        navigate('/quiz');
-      }
-    }, [isLoggedIn, navigate]);
+
 
     return (
       <Navbar 
         onLoginClick={() => setShowLoginModal(true)}
         onSignUpClick={() => setShowSignUpModal(true)}
-        isLoggedIn={isLoggedIn}
       />
     );
   };
@@ -89,10 +81,11 @@ function App() {
       <div className="min-h-screen bg-black text-white">
         <NavbarWrapper />
         <Routes>
-          <Route path="/" element={isLoggedIn ? <Navigate to="/quiz" /> : <Home />} />
+          <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<ProfilePage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/quiz" element={<QuizGenerator />} />
+          <Route path="/summary" element={<SummaryPage />} />
         </Routes>
         
         <LoginModal 
