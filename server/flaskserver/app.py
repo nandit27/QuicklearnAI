@@ -1,35 +1,29 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from sentence_transformers import SentenceTransformer
-import faiss
-import numpy as np
-import pdfplumber
+from flask_cors import CORS 
 import re
-import os
 import json
 from langchain_groq import ChatGroq
+import os
+from dotenv import load_dotenv
+load_dotenv()
+from pymongo import MongoClient
 import google.generativeai as genai
 from google.generativeai import GenerativeModel
-from flask import Flask, request, jsonify
 import jwt
-from pymongo import MongoClient
-from bson.objectid import ObjectId
-from langchain_groq import ChatGroq
-import os
 from functools import wraps
+from bson.objectid import ObjectId
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.embeddings import HuggingFaceBgeEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.document_loaders import PyPDFLoader
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.chains import RetrievalQA
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from sentence_transformers import SentenceTransformer
-import pdfplumber
-import os
-import faiss
-import numpy as np
-import re
-import pptx
-from werkzeug.utils import secure_filename
+app = Flask(__name__)
 
+# Database connection setup for our recommendation , uncomment it jab recommendations ki testing karoo 
 app = Flask(__name__)
 SECRET_KEY = "quick" 
 mongo_client = MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB URI
@@ -37,7 +31,16 @@ db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
 
 
-# YouTube Transcript API configurations
+
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:5173", "http://localhost:3000"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
+
 formatter = TextFormatter()
 
 def get_and_enhance_transcript(youtube_url):
@@ -59,16 +62,15 @@ def get_and_enhance_transcript(youtube_url):
         formatted_transcript = formatter.format_transcript(transcript)
 
         prompt = f"""
-        Act as a transcript cleaner. Generate a new transcript with the same context and the content only covered in the given transcript. 
-        If there is a revision portion, differentiate it with the actual transcript.
-        Give the results in sentences line by line, not in a single line. Also check whether the transcript words have any educational content relevance or not; if not then just give output as: 'Fake transcript'.
+        Act as a transcript cleaner. Generate a new transcript with the same context and the content only covered in the given transcript. If there is a revision portion differentiate it with the actual transcript.
+        Give the results in sentences line by line, not in a single line.
         Transcript: {formatted_transcript}
         """
-
+        # apikey = os.getenv("GROQ_API_KEY")
         llm = ChatGroq(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-specdec",
             temperature=0,
-            groq_api_key="YOUR_GROQ_API_KEY"
+            groq_api_key="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"
         )
 
         enhanced_transcript = llm.invoke(prompt)
@@ -79,13 +81,13 @@ def get_and_enhance_transcript(youtube_url):
         return None, None
 
 def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
+
     try:
+        print("hello")
         prompt = f"""
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
-        Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (`'`) instead of quotation marks (" or “ ”).
-
-        If the transcript contains 'Fake Transcript', do not generate any quiz or summary.
+        Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or “ ”).
 
         After the summary, give the name of the topic on which the transcript was all about in a maximum of 2 to 3 words.
         After summarizing, create a quiz with {num_questions} multiple-choice questions in English, based on the transcript content.
@@ -116,17 +118,20 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         Transcript: {transcript}
         """
 
+        # apikey = os.getenv("GROQ_API_KEY")
+
         llm = ChatGroq(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-specdec",
             temperature=0,
-            groq_api_key="YOUR_GROQ_API_KEY"
+            groq_api_key="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"
         )
         response = llm.invoke(prompt)
-
         if hasattr(response, 'content'):
             response_content = response.content
             try:
+                print("response_content:",response_content)
                 response_dict = json.loads(response_content)
+                print("response_dict:",response_dict)
                 return response_dict
             except json.JSONDecodeError as e:
                 print(f"JSONDecodeError: {e}")
@@ -139,178 +144,36 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         print(f"Error generating summary and quiz: {str(e)}")
         return None
 
-# PDF Q&A configurations
-from flask import Flask, request, jsonify
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from sentence_transformers import SentenceTransformer
-import pdfplumber
-import os
-import faiss
-import numpy as np
-import re
-import pptx
-
-app = Flask(__name__)
-
-# Models and Globals
-embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-tokenizer = AutoTokenizer.from_pretrained("t5-small")
-generator_model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
-
-index = None
-corpus = []
-
-# PDF Processing
-def load_pdf_and_split(file_path, chunk_size=200):
-    full_text = ""
-    try:
-        with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    full_text += text + " "
-    except Exception as e:
-        print(f"Error reading PDF: {str(e)}")
-        return []
-
-    full_text = re.sub(r'\s+', ' ', full_text).strip()
-    chunks = []
-    sentences = re.split(r'(?<=[.!?])\s+', full_text)
-    current_chunk = ""
-
-    for sentence in sentences:
-        if len(current_chunk) + len(sentence) < chunk_size:
-            current_chunk += sentence + " "
-        else:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-            current_chunk = sentence + " "
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-
-    return chunks
-
-
-def load_ppt_and_split(file_path, chunk_size=200):
-    full_text = ""
-    try:
-        presentation = pptx.Presentation(file_path)
-        for slide in presentation.slides:
-            for shape in slide.shapes:
-                if shape.has_text_frame:
-                    full_text += shape.text.strip() + " "
-    except Exception as e:
-        print(f"Error reading PPT: {str(e)}")
-        return []
-
-    full_text = re.sub(r'\s+', ' ', full_text).strip()
-    return load_pdf_and_split(full_text, chunk_size)
-
-
-def build_faiss_index(corpus):
-    corpus_embeddings = embedding_model.encode(corpus)
-    dimension = corpus_embeddings.shape[1]
-    faiss_index = faiss.IndexFlatL2(dimension)
-    faiss_index.add(np.array(corpus_embeddings).astype('float32'))
-    return faiss_index, corpus_embeddings
-
-# File Upload Endpoint
-ALLOWED_EXTENSIONS = {'pdf', 'pptx'}
-
-def is_allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    global index, corpus
-
-    print(request.files)
+@app.route('/quiz', methods=['POST', 'OPTIONS'])
+def quiz():
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
         
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part in the request."}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No file selected for uploading."}), 400
-
-    if not is_allowed_file(file.filename):
-        return jsonify({"error": "Invalid file type. Please upload a PDF or PPTX file."}), 400
-
-    try:
-        # Save the file securely
-        filename = secure_filename(file.filename)
-        file_path = os.path.join("uploads", filename)
-        os.makedirs("uploads", exist_ok=True)
-        file.save(file_path)
-
-        # Process the file
-        if filename.endswith('.pdf'):
-            corpus = load_pdf_and_split(file_path)
-        else:
-            corpus = load_ppt_and_split(file_path)
-
-        if not corpus:
-            return jsonify({"error": "Could not extract text from the file."}), 500
-
-        # Build the FAISS index
-        index, _ = build_faiss_index(corpus)
-        return jsonify({"message": "File processed and index built successfully."}), 200
-
-    except Exception as e:
-        return jsonify({"error": f"An error occurred while processing the file: {str(e)}"}), 500
-
-
-@app.route('/ask', methods=['POST'])
-def ask_question():
-    global index, corpus
-    if index is None or not corpus:
-        return jsonify({"error": "No file uploaded or index built yet."}), 400
-
-    query = request.json.get('query')
-    if not query:
-        return jsonify({"error": "No query provided."}), 400
-
-    try:
-        query_embedding = embedding_model.encode([query])
-        distances, indices = index.search(np.array(query_embedding).astype('float32'), k=3)
-        relevant_chunks = [corpus[i] for i in indices[0] if i < len(corpus)]
-
-        input_text = " ".join(relevant_chunks) + " Question: " + query
-        input_ids = tokenizer.encode(input_text, return_tensors='pt', truncation=True, max_length=512)
-        output_ids = generator_model.generate(input_ids, max_length=150, num_beams=4, early_stopping=True)
-        answer = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-
-        return jsonify({"answer": answer}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
-
-@app.route('/quiz', methods=['POST'])
-def generate_quiz():
     data = request.json
-    youtube_link = data.get('youtube_url')
-    num_questions = data.get('num_questions', 5)
-    difficulty = data.get('difficulty', 'medium')
+    youtube_link = data.get('link')
+    num_questions = data.get('qno')
+    difficulty = data.get('difficulty')
 
     if youtube_link:
         transcript, language = get_and_enhance_transcript(youtube_link)
         
         if transcript:
             summary_and_quiz = generate_summary_and_quiz(transcript, num_questions, language, difficulty)
+            
             if summary_and_quiz:
+                print(summary_and_quiz) 
                 return jsonify(summary_and_quiz)
+
             else:
                 return jsonify({"error": "Failed to generate quiz"}), 500
         else:
             return jsonify({"error": "Failed to fetch transcript"}), 404
     else:
         return jsonify({"error": "No YouTube URL provided"}), 400
- # Replace with your actual secret key
+    
 
 
-# Middleware for token validation
+# recommendation
 def validate_token_middleware():
     def middleware(func):
         @wraps(func)
@@ -340,10 +203,10 @@ def validate_token_middleware():
 def llama_generate_recommendations(prompt):
     try:
         # Configure the API key
-        genai.configure(api_key=os.getenv("GENAI_API_KEY"))
+        genai.configure(api_key="AIzaSyDy-nBqYn7LTHJ-hVhOFEwQYMnvaS04Lcg")
         
         # Create Gemini Flash model instance
-        model = GenerativeModel('gemini-2.0-flash-exp')
+        model = GenerativeModel('gemini-flash-latest')
         
         # Generate response
         response = model.generate_content(prompt)
@@ -378,9 +241,97 @@ def get_recommendations():
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
 
 
-@app.route('/')
-def home():
-    return jsonify({"message": "Welcome to the QuickLearn AI server"}), 200
+
+# Rag ChatBOT
+
+
+groq_api_key = "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"
+groq_model_name = "llama3-8b-8192"
+  
+  # Initialize Groq Chat
+groq_chat = ChatGroq(
+      groq_api_key=groq_api_key,
+      model_name=groq_model_name,
+  )
+  
+  # Define the Groq system prompt
+groq_sys_prompt = ChatPromptTemplate.from_template(
+      "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
+      "Answer the following questions: {user_prompt}. Start the answer directly, no small talks please"
+  )
+  
+  # Initialize global variables
+vectorstore = None
+chain = None
+  
+  # Endpoint to upload PDF and initialize vectorstore
+@app.route('/upload', methods=['POST'])
+def upload_pdf():
+      global vectorstore, chain
+  
+      if 'file' not in request.files:
+          return jsonify({"error": "No file part in the request"}), 400
+  
+      file = request.files['file']
+  
+      if file.filename == '':
+          return jsonify({"error": "No file selected"}), 400
+  
+      try:
+          # Save uploaded file
+          file_path = os.path.join("./", file.filename)
+          file.save(file_path)
+  
+          # Load PDF and create vectorstore
+          loaders = [PyPDFLoader(file_path)]
+          vectorstore = VectorstoreIndexCreator(
+              embedding=HuggingFaceBgeEmbeddings(model_name='all-MiniLM-L12-v2'),
+              text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+          ).from_loaders(loaders).vectorstore
+  
+          # Create the RetrievalQA chain
+          chain = RetrievalQA.from_chain_type(
+              llm=groq_chat,
+              chain_type='stuff',
+              retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+              return_source_documents=True
+          )
+  
+          return jsonify({"message": "File uploaded and processed successfully"}), 200
+  
+      except Exception as e:
+          return jsonify({"error": str(e)}), 500
+  
+  # Endpoint to ask questions
+@app.route('/ask', methods=['POST'])
+def ask_question():
+      global chain
+  
+      if not chain:
+          return jsonify({"error": "No vectorstore initialized. Upload a document first."}), 400
+  
+      data = request.get_json()
+      user_prompt = data.get('prompt', '')
+  
+      if not user_prompt:
+          return jsonify({"error": "Prompt is required"}), 400
+  
+      try:
+          # Query the chain
+          result = chain({"query": user_prompt})
+          response = result["result"]
+  
+          return jsonify({"response": response}), 200
+  
+      except Exception as e:
+          return jsonify({"error": str(e)}), 500
+
+
+
+
+@app.route('/', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"}) 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
