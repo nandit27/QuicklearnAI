@@ -205,7 +205,7 @@ def validate_token_middleware():
 def llama_generate_recommendations(prompt):
     try:
         # Configure the API key
-        genai.configure(api_key="AIzaSyDy-nBqYn7LTHJ-hVhOFEwQYMnvaS04Lcg")
+        genai.configure(api_key="")
         
         # Create Gemini Flash model instance
         model = GenerativeModel('gemini-flash-latest')
@@ -247,7 +247,7 @@ def get_recommendations():
 # Rag ChatBOT
 
 
-groq_api_key = os.getenv("GROQ_API_KEY")
+groq_api_key = "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"
 groq_model_name = "llama3-8b-8192"
   
   # Initialize Groq Chat
