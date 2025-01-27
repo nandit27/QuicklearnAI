@@ -70,7 +70,7 @@ def get_and_enhance_transcript(youtube_url):
         llm = ChatGroq(
             model="llama-3.3-70b-specdec",
             temperature=0,
-            groq_api_key="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"
+            groq_api_key=""
         )
 
         enhanced_transcript = llm.invoke(prompt)
@@ -123,7 +123,7 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         llm = ChatGroq(
             model="llama-3.3-70b-specdec",
             temperature=0,
-            groq_api_key="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"
+            groq_api_key=""
         )
         response = llm.invoke(prompt)
         if hasattr(response, 'content'):
@@ -203,7 +203,7 @@ def validate_token_middleware():
 def llama_generate_recommendations(prompt):
     try:
         # Configure the API key
-        genai.configure(api_key="AIzaSyDy-nBqYn7LTHJ-hVhOFEwQYMnvaS04Lcg")
+        genai.configure(api_key="")
         
         # Create Gemini Flash model instance
         model = GenerativeModel('gemini-flash-latest')
@@ -245,7 +245,7 @@ def get_recommendations():
 # Rag ChatBOT
 
 
-groq_api_key = "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"
+groq_api_key = ""
 groq_model_name = "llama3-8b-8192"
   
   # Initialize Groq Chat
