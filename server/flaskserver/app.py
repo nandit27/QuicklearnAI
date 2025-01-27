@@ -62,15 +62,16 @@ def get_and_enhance_transcript(youtube_url):
         formatted_transcript = formatter.format_transcript(transcript)
 
         prompt = f"""
-        Act as a transcript cleaner. Generate a new transcript with the same context and the content only covered in the given transcript. If there is a revision portion differentiate it with the actual transcript.
-        Give the results in sentences line by line, not in a single line.
+        Act as a transcript cleaner. Generate a new transcript with the same context and the content only covered in the given transcript. 
+        If there is a revision portion, differentiate it with the actual transcript.
+        Give the results in sentences line by line, not in a single line. Also check whether the transcript words have any educational content relevance or not; if not then just give output as: 'Fake transcript'.
         Transcript: {formatted_transcript}
         """
         # apikey = os.getenv("GROQ_API_KEY")
         llm = ChatGroq(
             model="llama-3.3-70b-specdec",
             temperature=0,
-            groq_api_key="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"
+            groq_api_key=os.getenv("GROQ_API_KEY")
         )
 
         enhanced_transcript = llm.invoke(prompt)
@@ -83,11 +84,12 @@ def get_and_enhance_transcript(youtube_url):
 def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
 
     try:
-        print("hello")
         prompt = f"""
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
         Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or “ ”).
+
+        If the transcript contains 'Fake Transcript', do not generate any quiz or summary.
 
         After the summary, give the name of the topic on which the transcript was all about in a maximum of 2 to 3 words.
         After summarizing, create a quiz with {num_questions} multiple-choice questions in English, based on the transcript content.
@@ -123,7 +125,7 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         llm = ChatGroq(
             model="llama-3.3-70b-specdec",
             temperature=0,
-            groq_api_key="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"
+            groq_api_key=os.getenv("GROQ_API_KEY")
         )
         response = llm.invoke(prompt)
         if hasattr(response, 'content'):
@@ -245,7 +247,7 @@ def get_recommendations():
 # Rag ChatBOT
 
 
-groq_api_key = "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"
+groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
   
   # Initialize Groq Chat
@@ -257,7 +259,7 @@ groq_chat = ChatGroq(
   # Define the Groq system prompt
 groq_sys_prompt = ChatPromptTemplate.from_template(
       "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
-      "Answer the following questions: {user_prompt}. Start the answer directly, no small talks please"
+      "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge , but make sure information is correct"
   )
   
   # Initialize global variables
@@ -294,7 +296,8 @@ def upload_pdf():
               llm=groq_chat,
               chain_type='stuff',
               retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
-              return_source_documents=True
+              return_source_documents=True,
+              chain_type_kwargs = {"prompt":groq_sys_prompt}
           )
   
           return jsonify({"message": "File uploaded and processed successfully"}), 200

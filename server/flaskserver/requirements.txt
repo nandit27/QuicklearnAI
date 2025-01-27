@@ -11,3 +11,4 @@ pymongo
 PyJWT
 langchain-groq
 google-generativeai
+python-dotenv
