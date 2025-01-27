@@ -9,6 +9,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+
 app = Flask(__name__)
 
 CORS(app, resources={
@@ -47,7 +48,7 @@ def get_and_enhance_transcript(youtube_url):
         """
         # apikey = os.getenv("GROQ_API_KEY")
         llm = ChatGroq(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-specdec",
             temperature=0,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
@@ -60,7 +61,9 @@ def get_and_enhance_transcript(youtube_url):
         return None, None
 
 def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
+
     try:
+        print("hello")
         prompt = f"""
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
@@ -98,16 +101,17 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
         # apikey = os.getenv("GROQ_API_KEY")
 
         llm = ChatGroq(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-specdec",
             temperature=0,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
         response = llm.invoke(prompt)
-
         if hasattr(response, 'content'):
             response_content = response.content
             try:
+                print("response_content:",response_content)
                 response_dict = json.loads(response_content)
+                print("response_dict:",response_dict)
                 return response_dict
             except json.JSONDecodeError as e:
                 print(f"JSONDecodeError: {e}")
@@ -137,7 +141,9 @@ def quiz():
             summary_and_quiz = generate_summary_and_quiz(transcript, num_questions, language, difficulty)
             
             if summary_and_quiz:
+                print(summary_and_quiz) 
                 return jsonify(summary_and_quiz)
+
             else:
                 return jsonify({"error": "Failed to generate quiz"}), 500
         else:

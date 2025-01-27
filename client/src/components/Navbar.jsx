@@ -45,8 +45,8 @@ function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Product</a>
-              <Link to="/summary" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Pricing</Link>
+            <Link to="/" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Home</Link>
+              <Link to="/summary" className="text-l font-medium hover:text-[#00FF9D] transition-colors">ChatBot</Link>
               <Link to="/quiz" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Chat With QuickLearnAI</Link>
             </div>
             
@@ -65,17 +65,19 @@ function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
                   >
                     Login
                   </button>
-                  <div className="transition-all duration-300 rounded-full hover:ring-2 hover:ring-[#00FF9D] hover:ring-offset-2 hover:ring-offset-black">
-                    <Avatar>
-                      <AvatarImage 
-                        src={"https://github.com/shadcn.png"} 
-                        alt={"Profile"} 
-                      />
-                      <AvatarFallback className="bg-gray-600">
-                        {"SN"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
+                  <Link to="/profile">
+                    <div className="transition-all duration-300 rounded-full hover:ring-2 hover:ring-[#00FF9D] hover:ring-offset-2 hover:ring-offset-black">
+                      <Avatar>
+                        <AvatarImage 
+                          src={"https://github.com/shadcn.png"} 
+                          alt={"Profile"} 
+                        />
+                        <AvatarFallback className="bg-gray-600">
+                          {"SN"}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </Link>
                 </>
               ) : (
                 <>

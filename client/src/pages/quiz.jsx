@@ -230,7 +230,7 @@ const QuizGenerator = () => {
             <p className="text-2xl text-gray-400">
               Time utilised: {quizStats.timeSpent}
             </p>
-          </div>
+          </div>  
 
           <div className="space-y-6">
             <div className="grid grid-cols-3 gap-4 mb-4 text-xl font-bold">
