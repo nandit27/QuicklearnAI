@@ -9,7 +9,12 @@ const storestatisticRoutes = require('./routes/user.routes');
 
 const morgan = require('morgan');
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173', // Your frontend URL
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Access-Control-Allow-Origin']
+  }));
 
 app.get('/', (req, res) => {
     res.send({ message: 'ok' });

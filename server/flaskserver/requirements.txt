@@ -1,5 +1,5 @@
-Flask
-youtube_transcript_api
+Flask==2.3.2
+youtube-transcript-api==0.4.3
 transformers
 sentence_transformers
 faiss-cpu
@@ -9,6 +9,14 @@ python-pptx
 werkzeug
 pymongo
 PyJWT
-langchain-groq
+langchain-groq==0.0.1
 google-generativeai
 python-dotenv
+requests==2.31.0
+flask-cors==4.0.0
+
+
+
+
+
+

@@ -21,6 +21,7 @@ from langchain.document_loaders import PyPDFLoader
 from langchain.indexes import VectorstoreIndexCreator
 from langchain.chains import RetrievalQA
 
+
 app = Flask(__name__)
 
 # Database connection setup for our recommendation , uncomment it jab recommendations ki testing karoo 
@@ -29,9 +30,6 @@ SECRET_KEY = "quick"
 mongo_client = MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB URI
 db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
-
-
-
 CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5173", "http://localhost:3000"],
