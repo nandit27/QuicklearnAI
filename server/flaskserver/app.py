@@ -8,10 +8,28 @@ from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 load_dotenv()
+from pymongo import MongoClient
+import google.generativeai as genai
+from google.generativeai import GenerativeModel
+import jwt
+from functools import wraps
+from bson.objectid import ObjectId
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.document_loaders import PyPDFLoader
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.chains import RetrievalQA
 
 
 app = Flask(__name__)
 
+# Database connection setup for our recommendation , uncomment it jab recommendations ki testing karoo 
+app = Flask(__name__)
+SECRET_KEY = "quick" 
+mongo_client = MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB URI
+db = mongo_client["quicklearnai"]
+topics_collection = db["statistics"]
 CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5173", "http://localhost:3000"],
@@ -42,8 +60,9 @@ def get_and_enhance_transcript(youtube_url):
         formatted_transcript = formatter.format_transcript(transcript)
 
         prompt = f"""
-        Act as a transcript cleaner. Generate a new transcript with the same context and the content only covered in the given transcript. If there is a revision portion differentiate it with the actual transcript.
-        Give the results in sentences line by line, not in a single line.
+        Act as a transcript cleaner. Generate a new transcript with the same context and the content only covered in the given transcript. 
+        If there is a revision portion, differentiate it with the actual transcript.
+        Give the results in sentences line by line, not in a single line. Also check whether the transcript words have any educational content relevance or not; if not then just give output as: 'Fake transcript'.
         Transcript: {formatted_transcript}
         """
         # apikey = os.getenv("GROQ_API_KEY")
@@ -65,9 +84,12 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
     try:
         print("hello")
         prompt = f"""
+     
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
         Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or “ ”).
+
+        If the transcript contains 'Fake Transcript', do not generate any quiz or summary.
 
         After the summary, give the name of the topic on which the transcript was all about in a maximum of 2 to 3 words.
         After summarizing, create a quiz with {num_questions} multiple-choice questions in English, based on the transcript content.
@@ -150,6 +172,164 @@ def quiz():
             return jsonify({"error": "Failed to fetch transcript"}), 404
     else:
         return jsonify({"error": "No YouTube URL provided"}), 400
+    
+
+
+# recommendation
+def validate_token_middleware():
+    def middleware(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            auth_header = request.headers.get("Authorization")
+            token = auth_header.split("Bearer ")[-1] if auth_header and "Bearer " in auth_header else None
+            
+            if not token:
+                return jsonify({"message": "Unauthorized: No token provided"}), 401
+            
+            try:
+                decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                request.user_id = decoded.get("id")
+                request.user_role = decoded.get("role")  # Optional
+                return func(*args, **kwargs)
+            except jwt.ExpiredSignatureError:
+                return jsonify({"message": "Unauthorized: Token has expired"}), 401
+            except jwt.InvalidTokenError as e:
+                print(f"Token decoding error: {e}")
+                return jsonify({"message": "Unauthorized: Invalid token"}), 401
+        
+        return wrapper
+    return middleware
+
+
+# Function to interact with LLaMA API
+def llama_generate_recommendations(prompt):
+    try:
+        # Configure the API key
+        api_key=os.getenv("GENAI_API_KEY")
+        genai.configure(api_key=api_key)
+        
+        # Create Gemini Flash model instance
+        model = GenerativeModel('gemini-2.0-flash-exp')
+        
+        # Generate response
+        response = model.generate_content(prompt)
+        
+        return response.text
+    except Exception as e:
+        return f"Error connecting to Gemini API: {e}"
+    
+@app.route('/getonly', methods=['GET'])
+@validate_token_middleware()
+def get_recommendations():
+    user_id = request.user_id  # Extract user ID from the token
+    try:
+        user_documents = topics_collection.find({"student": ObjectId(user_id)})
+        user_list = list(user_documents)
+
+        topics = [doc.get("topic") for doc in user_list if "topic" in doc]
+
+        if not topics:
+            return jsonify({"message": "No topics found for the provided user."}), 404
+
+        prompt = f"Act as a recommendation generator , generate and recommend content for the following topics , also give five urls of YouTube videos regarding the topic .If there are multiple topics give overview of each of them and links for each topic video as well. The topics are: {', '.join(topics)}"
+        recommendations = llama_generate_recommendations(prompt)
+
+        return jsonify({
+            "message": "Recommendations generated successfully",
+            "recommendations": recommendations
+        }), 200
+
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"message": f"An error occurred: {str(e)}"}), 500
+
+
+
+# Rag ChatBOT
+
+
+groq_api_key = os.getenv("GROQ_API_KEY")
+groq_model_name = "llama3-8b-8192"
+  
+  # Initialize Groq Chat
+groq_chat = ChatGroq(
+      groq_api_key=groq_api_key,
+      model_name=groq_model_name,
+  )
+  
+  # Define the Groq system prompt
+groq_sys_prompt = ChatPromptTemplate.from_template(
+      "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
+      "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge , but make sure information is correct"
+  )
+  
+  # Initialize global variables
+vectorstore = None
+chain = None
+  
+  # Endpoint to upload PDF and initialize vectorstore
+@app.route('/upload', methods=['POST'])
+def upload_pdf():
+      global vectorstore, chain
+  
+      if 'file' not in request.files:
+          return jsonify({"error": "No file part in the request"}), 400
+  
+      file = request.files['file']
+  
+      if file.filename == '':
+          return jsonify({"error": "No file selected"}), 400
+  
+      try:
+          # Save uploaded file
+          file_path = os.path.join("./", file.filename)
+          file.save(file_path)
+  
+          # Load PDF and create vectorstore
+          loaders = [PyPDFLoader(file_path)]
+          vectorstore = VectorstoreIndexCreator(
+              embedding=HuggingFaceEmbeddings(model_name='all-MiniLM-L12-v2'),
+              text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+          ).from_loaders(loaders).vectorstore
+  
+          # Create the RetrievalQA chain
+          chain = RetrievalQA.from_chain_type(
+              llm=groq_chat,
+              chain_type='stuff',
+              retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+              return_source_documents=True,
+              chain_type_kwargs = {"prompt":groq_sys_prompt}
+          )
+  
+          return jsonify({"message": "File uploaded and processed successfully"}), 200
+  
+      except Exception as e:
+          return jsonify({"error": str(e)}), 500
+  
+  # Endpoint to ask questions
+@app.route('/ask', methods=['POST'])
+def ask_question():
+      global chain
+  
+      if not chain:
+          return jsonify({"error": "No vectorstore initialized. Upload a document first."}), 400
+  
+      data = request.get_json()
+      user_prompt = data.get('prompt', '')
+  
+      if not user_prompt:
+          return jsonify({"error": "Prompt is required"}), 400
+  
+      try:
+          # Query the chain
+          result = chain({"query": user_prompt})
+          response = result["result"]
+  
+          return jsonify({"response": response}), 200
+  
+      except Exception as e:
+          return jsonify({"error": str(e)}), 500
+
 
 @app.route('/', methods=['GET'])
 def health():
