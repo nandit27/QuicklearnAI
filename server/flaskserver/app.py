@@ -15,7 +15,7 @@ import jwt
 from functools import wraps
 from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.embeddings import HuggingFaceBgeEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader
 from langchain.indexes import VectorstoreIndexCreator
@@ -84,7 +84,9 @@ def get_and_enhance_transcript(youtube_url):
 def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
 
     try:
+        print("hello")
         prompt = f"""
+     
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
         Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or “ ”).
@@ -205,10 +207,11 @@ def validate_token_middleware():
 def llama_generate_recommendations(prompt):
     try:
         # Configure the API key
-        genai.configure(api_key="")
+        api_key=os.getenv("GENAI_API_KEY")
+        genai.configure(api_key=api_key)
         
         # Create Gemini Flash model instance
-        model = GenerativeModel('gemini-flash-latest')
+        model = GenerativeModel('gemini-2.0-flash-exp')
         
         # Generate response
         response = model.generate_content(prompt)
@@ -247,7 +250,7 @@ def get_recommendations():
 # Rag ChatBOT
 
 
-groq_api_key = "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"
+groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
   
   # Initialize Groq Chat
@@ -287,7 +290,7 @@ def upload_pdf():
           # Load PDF and create vectorstore
           loaders = [PyPDFLoader(file_path)]
           vectorstore = VectorstoreIndexCreator(
-              embedding=HuggingFaceBgeEmbeddings(model_name='all-MiniLM-L12-v2'),
+              embedding=HuggingFaceEmbeddings(model_name='all-MiniLM-L12-v2'),
               text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
           ).from_loaders(loaders).vectorstore
   
@@ -328,8 +331,6 @@ def ask_question():
   
       except Exception as e:
           return jsonify({"error": str(e)}), 500
-
-
 
 
 @app.route('/', methods=['GET'])
