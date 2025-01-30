@@ -35,7 +35,11 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
       
       // Close modal and redirect
       onClose();
-      navigate('/dashboard');
+      if (activeTab === 'teacher') {
+        navigate('/teacher-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
       
       // Trigger page reload to update UI
       window.location.reload();
@@ -262,6 +266,18 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 <option value="english">English</option>
                 <option value="other">Other</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                placeholder="Enter your password"
+                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                required
+              />
             </div>
 
             <button

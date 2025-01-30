@@ -1,33 +1,27 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
-import axios from 'axios'
 
-function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(propIsLoggedIn);
+function Navbar({ onSignUpClick, onLoginClick }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userType, setUserType] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Update local state when prop changes
-    setIsLoggedIn(propIsLoggedIn);
-  }, [propIsLoggedIn]);
+    // Check if user is logged in by looking for user-info in localStorage
+    const userInfo = JSON.parse(localStorage.getItem('user-info'));
+    setIsLoggedIn(!!userInfo);
+    setUserType(userInfo?.role || null);
+  }, []);
 
-  const handleLogout = async () => {
-    try {
-      await axios.post('http://localhost:3000/user/logout', {}, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      localStorage.removeItem('user-info');
-      setIsLoggedIn(false);
-      navigate('/');
-      window.location.reload();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+  const handleLogout = () => {
+    // Simply clear localStorage and update state
+    localStorage.removeItem('user-info');
+    setIsLoggedIn(false);
+    setUserType(null);
+    navigate('/');
+    // Force a page reload to clear any remaining state
+    window.location.reload();
   };
 
   return (
@@ -45,7 +39,7 @@ function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Home</Link>
+              <Link to="/" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Home</Link>
               <Link to="/summary" className="text-l font-medium hover:text-[#00FF9D] transition-colors">ChatBot</Link>
               <Link to="/quiz" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Chat With QuickLearnAI</Link>
             </div>
@@ -65,19 +59,6 @@ function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
                   >
                     Login
                   </button>
-                  <Link to="/profile">
-                    <div className="transition-all duration-300 rounded-full hover:ring-2 hover:ring-[#00FF9D] hover:ring-offset-2 hover:ring-offset-black">
-                      <Avatar>
-                        <AvatarImage 
-                          src={"https://github.com/shadcn.png"} 
-                          alt={"Profile"} 
-                        />
-                        <AvatarFallback className="bg-gray-600">
-                          {"SN"}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </Link>
                 </>
               ) : (
                 <>
@@ -87,7 +68,7 @@ function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
                   >
                     Logout
                   </button>
-                  <Link to="/dashboard">
+                  <Link to={userType === 'teacher' ? '/teacher-dashboard' : '/dashboard'}>
                     <div className="transition-all duration-300 rounded-full hover:ring-2 hover:ring-[#00FF9D] hover:ring-offset-2 hover:ring-offset-black">
                       <Avatar>
                         <AvatarImage 
@@ -110,4 +91,4 @@ function Navbar({ onSignUpClick, onLoginClick, isLoggedIn: propIsLoggedIn }) {
   );
 }
 
-export default Navbar
+export default Navbar;

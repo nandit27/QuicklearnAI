@@ -4,23 +4,33 @@ from youtube_transcript_api.formatters import TextFormatter
 from flask_cors import CORS 
 import re
 import json
+from langchain_community.llms import GPT4All  
 from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 load_dotenv()
 from pymongo import MongoClient
+import PyPDF2
 import google.generativeai as genai
+import io
 from google.generativeai import GenerativeModel
 import jwt
 from functools import wraps
+from werkzeug.utils import secure_filename
+import logging
 from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import PyPDFLoader
-from langchain.indexes import VectorstoreIndexCreator
+from langchain_community.document_loaders import PyPDFLoader
+# from langchain_community.indexes import VectorstoreIndexCreator  # Commented out due to ImportError
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_community.document_loaders import PyMuPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
-
+from io import BytesIO
+from PyPDF2 import PdfReader  
+from langchain.schema import Document  
 
 app = Flask(__name__)
 
@@ -30,6 +40,9 @@ SECRET_KEY = "quick"
 mongo_client = MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB URI
 db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
+
+
+
 CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5173", "http://localhost:3000"],
@@ -82,12 +95,12 @@ def get_and_enhance_transcript(youtube_url):
 def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
 
     try:
-        print("hello")
+        
         prompt = f"""
      
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
-        Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or “ ”).
+        Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or "  ").
 
         If the transcript contains 'Fake Transcript', do not generate any quiz or summary.
 
@@ -247,88 +260,98 @@ def get_recommendations():
 
 # Rag ChatBOT
 
-
+import faiss 
+from sentence_transformers import SentenceTransformer
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
   
   # Initialize Groq Chat
+groq_model_name = "llama3-8b-8192"
 groq_chat = ChatGroq(
-      groq_api_key=groq_api_key,
-      model_name=groq_model_name,
-  )
-  
-  # Define the Groq system prompt
+    groq_api_key=groq_api_key,
+    model_name=groq_model_name,
+)
+
+# Define the Groq system prompt
 groq_sys_prompt = ChatPromptTemplate.from_template(
-      "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
-      "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge , but make sure information is correct"
-  )
-  
-  # Initialize global variables
-vectorstore = None
-chain = None
-  
-  # Endpoint to upload PDF and initialize vectorstore
+    "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
+    "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
+)
+
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Pre-trained model for embeddings
+dimension = embedding_model.get_sentence_embedding_dimension()
+faiss_index = faiss.IndexFlatL2(dimension)  #
+# Initialize global variables
+metadata_store = {}
+pdf_storage = {}
+
+# Helper function to chunk and store in vectorstore
+def store_in_faiss(filename, text):
+    # Chunk the text
+    chunks = [text[i:i+1000] for i in range(0, len(text), 1000)]
+    embeddings = embedding_model.encode(chunks)  # Generate embeddings
+    faiss_index.add(embeddings)  # Add embeddings to the FAISS index
+
+    # Store metadata for lookup (associating chunks with files)
+    metadata_store.update({i: filename for i in range(len(metadata_store), len(metadata_store) + len(chunks))})
+
+
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
-      global vectorstore, chain
-  
-      if 'file' not in request.files:
-          return jsonify({"error": "No file part in the request"}), 400
-  
-      file = request.files['file']
-  
-      if file.filename == '':
-          return jsonify({"error": "No file selected"}), 400
-  
-      try:
-          # Save uploaded file
-          file_path = os.path.join("./", file.filename)
-          file.save(file_path)
-  
-          # Load PDF and create vectorstore
-          loaders = [PyPDFLoader(file_path)]
-          vectorstore = VectorstoreIndexCreator(
-              embedding=HuggingFaceEmbeddings(model_name='all-MiniLM-L12-v2'),
-              text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-          ).from_loaders(loaders).vectorstore
-  
-          # Create the RetrievalQA chain
-          chain = RetrievalQA.from_chain_type(
-              llm=groq_chat,
-              chain_type='stuff',
-              retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
-              return_source_documents=True,
-              chain_type_kwargs = {"prompt":groq_sys_prompt}
-          )
-  
-          return jsonify({"message": "File uploaded and processed successfully"}), 200
-  
-      except Exception as e:
-          return jsonify({"error": str(e)}), 500
-  
-  # Endpoint to ask questions
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    file_stream = io.BytesIO(file.read())
+
+    try:
+        reader = PyPDF2.PdfReader(file_stream)
+        text = ""
+        for page in range(len(reader.pages)):
+            text += reader.pages[page].extract_text()
+    except Exception as e:
+        return jsonify({'error': f'Failed to extract text from PDF: {str(e)}'}), 500
+
+    pdf_storage[file.filename] = text
+    store_in_faiss(file.filename, text)
+
+    return jsonify({'message': f'File {file.filename} uploaded successfully'}), 200
+
 @app.route('/ask', methods=['POST'])
 def ask_question():
-      global chain
-  
-      if not chain:
-          return jsonify({"error": "No vectorstore initialized. Upload a document first."}), 400
-  
-      data = request.get_json()
-      user_prompt = data.get('prompt', '')
-  
-      if not user_prompt:
-          return jsonify({"error": "Prompt is required"}), 400
-  
-      try:
-          # Query the chain
-          result = chain({"query": user_prompt})
-          response = result["result"]
-  
-          return jsonify({"response": response}), 200
-  
-      except Exception as e:
-          return jsonify({"error": str(e)}), 500
+    data = request.get_json()
+    user_prompt = data.get('prompt')
+
+    if not user_prompt:
+        return jsonify({'error': 'Prompt is required'}), 400
+
+    # Generate the query embedding
+    query_embedding = embedding_model.encode([user_prompt])
+    distances, indices = faiss_index.search(query_embedding, k=5)  # Retrieve top-5 relevant chunks
+
+    # Extract relevant text based on FAISS results
+    relevant_chunks = [metadata_store[idx] for idx in indices[0] if idx < len(metadata_store)]
+
+    try:
+        combined_context = "\n".join([pdf_storage[chunk] for chunk in relevant_chunks])
+        context = f"The content of the document is: {combined_context}\n\nUser query: {user_prompt}"
+
+        input_data = groq_sys_prompt.format(user_prompt=user_prompt)
+        groq_response = groq_chat.invoke(input=input_data)
+        print("hey")
+        augmented_response = {
+    'contextual_response': f"Based on the document: {groq_response.content}",
+    'augmented_response': "No additional information available."  # You can adapt this if needed.
+}
+
+
+        return jsonify({'response': augmented_response}), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Error processing query: {str(e)}'}), 500
+
+
+
 
 
 @app.route('/', methods=['GET'])

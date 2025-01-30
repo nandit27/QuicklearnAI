@@ -18,7 +18,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
     const data = {
       email: formData.get('email'),
       password: formData.get('password'),
-      role: activeTab // Include the role in the request
+      role: activeTab
     };
 
     try {
@@ -36,12 +36,17 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
           username: user.username,
           token,
           avatar: user.avatar,
-          role: activeTab // Store role in localStorage
+          role: activeTab
         };
         
         localStorage.setItem('user-info', JSON.stringify(userInfo));
         onClose();
-        navigate('/dashboard');
+        // Redirect based on role
+        if (activeTab === 'teacher') {
+          navigate('/teacher-dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Login failed');
@@ -81,12 +86,17 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
             username, 
             token, 
             avatar,
-            role: activeTab // Store role in localStorage
+            role: activeTab
           };
           
           localStorage.setItem('user-info', JSON.stringify(userInfo));
           onClose();
-          navigate('/dashboard');
+          // Redirect based on role
+          if (activeTab === 'teacher') {
+            navigate('/teacher-dashboard');
+          } else {
+            navigate('/dashboard');
+          }
         } else {
           throw new Error('No token received from server');
         }
