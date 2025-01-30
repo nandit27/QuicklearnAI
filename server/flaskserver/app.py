@@ -4,32 +4,46 @@ from youtube_transcript_api.formatters import TextFormatter
 from flask_cors import CORS 
 import re
 import json
+from langchain.llms import GPT4All  
 from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 load_dotenv()
 from pymongo import MongoClient
 import google.generativeai as genai
+import io
 from google.generativeai import GenerativeModel
 import jwt
 from functools import wraps
+from werkzeug.utils import secure_filename
+import logging
 from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader
 from langchain.indexes import VectorstoreIndexCreator
+from langchain.vectorstores import FAISS
+from langchain.embeddings import SentenceTransformerEmbeddings
+from langchain.document_loaders import PyMuPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
-
+from io import BytesIO
+from PyPDF2 import PdfReader  
+from langchain.schema import Document  
+import chromadb
+from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
+from langchain.document_loaders import PyPDFLoader
+from pptx import Presentation
 
 app = Flask(__name__)
-
-# Database connection setup for our recommendation , uncomment it jab recommendations ki testing karoo 
+ 
 app = Flask(__name__)
 SECRET_KEY = "quick" 
-mongo_client = MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB URI
+mongo_client = MongoClient("mongodb://localhost:27017/") 
 db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
+
 CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5173", "http://localhost:3000"],
@@ -82,7 +96,7 @@ def get_and_enhance_transcript(youtube_url):
 def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
 
     try:
-        print("hello")
+        
         prompt = f"""
      
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
@@ -119,9 +133,6 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
 
         Transcript: {transcript}
         """
-
-        # apikey = os.getenv("GROQ_API_KEY")
-
         llm = ChatGroq(
             model="llama-3.3-70b-specdec",
             temperature=0,
@@ -201,17 +212,13 @@ def validate_token_middleware():
     return middleware
 
 
-# Function to interact with LLaMA API
 def llama_generate_recommendations(prompt):
     try:
-        # Configure the API key
         api_key=os.getenv("GENAI_API_KEY")
         genai.configure(api_key=api_key)
         
-        # Create Gemini Flash model instance
         model = GenerativeModel('gemini-2.0-flash-exp')
         
-        # Generate response
         response = model.generate_content(prompt)
         
         return response.text
@@ -244,91 +251,93 @@ def get_recommendations():
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
 
 
-
-# Rag ChatBOT
-
-
+import faiss 
+from sentence_transformers import SentenceTransformer
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
   
-  # Initialize Groq Chat
 groq_chat = ChatGroq(
-      groq_api_key=groq_api_key,
-      model_name=groq_model_name,
-  )
-  
-  # Define the Groq system prompt
+    groq_api_key=groq_api_key,
+    model_name=groq_model_name,
+)
+
+
 groq_sys_prompt = ChatPromptTemplate.from_template(
-      "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
-      "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge , but make sure information is correct"
-  )
-  
-  # Initialize global variables
-vectorstore = None
-chain = None
-  
-  # Endpoint to upload PDF and initialize vectorstore
-@app.route('/upload', methods=['POST'])
-def upload_pdf():
-      global vectorstore, chain
-  
-      if 'file' not in request.files:
-          return jsonify({"error": "No file part in the request"}), 400
-  
-      file = request.files['file']
-  
-      if file.filename == '':
-          return jsonify({"error": "No file selected"}), 400
-  
-      try:
-          # Save uploaded file
-          file_path = os.path.join("./", file.filename)
-          file.save(file_path)
-  
-          # Load PDF and create vectorstore
-          loaders = [PyPDFLoader(file_path)]
-          vectorstore = VectorstoreIndexCreator(
-              embedding=HuggingFaceEmbeddings(model_name='all-MiniLM-L12-v2'),
-              text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-          ).from_loaders(loaders).vectorstore
-  
-          # Create the RetrievalQA chain
-          chain = RetrievalQA.from_chain_type(
-              llm=groq_chat,
-              chain_type='stuff',
-              retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
-              return_source_documents=True,
-              chain_type_kwargs = {"prompt":groq_sys_prompt}
-          )
-  
-          return jsonify({"message": "File uploaded and processed successfully"}), 200
-  
-      except Exception as e:
-          return jsonify({"error": str(e)}), 500
-  
-  # Endpoint to ask questions
-@app.route('/ask', methods=['POST'])
-def ask_question():
-      global chain
-  
-      if not chain:
-          return jsonify({"error": "No vectorstore initialized. Upload a document first."}), 400
-  
-      data = request.get_json()
-      user_prompt = data.get('prompt', '')
-  
-      if not user_prompt:
-          return jsonify({"error": "Prompt is required"}), 400
-  
-      try:
-          # Query the chain
-          result = chain({"query": user_prompt})
-          response = result["result"]
-  
-          return jsonify({"response": response}), 200
-  
-      except Exception as e:
-          return jsonify({"error": str(e)}), 500
+    "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
+    "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
+)
+
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Pre-trained model for embeddings
+dimension = embedding_model.get_sentence_embedding_dimension()
+faiss_index = faiss.IndexFlatL2(dimension) 
+metadata_store = {}
+pdf_storage = {}
+
+def store_in_faiss(filename, text):
+    chunks = [text[i:i+1000] for i in range(0, len(text), 1000)]
+    embeddings = embedding_model.encode(chunks)
+    faiss_index.add(embeddings)  
+    metadata_store.update({i: filename for i in range(len(metadata_store), len(metadata_store) + len(chunks))})
+
+
+
+genai.configure(api_key=os.getenv("GENAI_API_KEY"))
+model = SentenceTransformer("all-MiniLM-L6-v2")
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
+collection = chroma_client.get_or_create_collection(name="pdf_documents")
+
+def extract_text_from_pdf(pdf_file):
+    reader = PdfReader(pdf_file)
+    return " ".join(page.extract_text() for page in reader.pages if page.extract_text())
+
+def extract_text_from_pptx(pptx_path):
+    prs = Presentation(pptx_path)
+    text = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text"):  
+                text.append(shape.text)
+    return " ".join(text)  
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+    
+    file_ext = os.path.splitext(file.filename)[-1].lower()
+    file_path = os.path.join("./uploads", file.filename)
+    os.makedirs("./uploads", exist_ok=True)
+    file.save(file_path)
+    
+    try:
+        if file_ext == ".pdf":
+            content = extract_text_from_pdf(file_path)
+        elif file_ext == ".pptx":
+            content = extract_text_from_pptx(file_path)
+        else:
+            return jsonify({"error": "Unsupported file format. Only PDF and PPTX are allowed."}), 400
+        
+        embedding = model.encode(content).tolist()
+        collection.add(documents=[content], embeddings=[embedding], ids=[file.filename])
+        
+        return jsonify({"message": "File uploaded and processed successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    
+@app.route("/query", methods=["POST"])
+def query_file():
+    data = request.get_json()
+    query = data.get("query", "")
+    query_embedding = model.encode(query).tolist()
+    results = collection.query(query_embeddings=[query_embedding], n_results=3)
+    retrieved_texts = "\n".join(results["documents"][0])
+    response = genai.GenerativeModel("gemini-1.5-flash").generate_content(retrieved_texts + "\nQuestion: " + query)
+    return jsonify({"answer": response.text})
 
 
 @app.route('/', methods=['GET'])
