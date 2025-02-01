@@ -104,20 +104,27 @@ export const statisticsService = {
   storeStatistics: async (statisticsData) => {
     try {
       const userInfo = localStorage.getItem('user-info');
-      const headers = {};
-      
-      if (userInfo) {
-        const { token } = JSON.parse(userInfo);
-        console.log('Token:', token); // Ensure token is present and valid
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
-        }
+      if (!userInfo) {
+        throw new Error('User not authenticated');
       }
 
-      const response = await api2.post('/user/user/statistics', statisticsData, { 
-        headers,
-        withCredentials: true 
+      const { _id, token } = JSON.parse(userInfo);
+      if (!_id) {
+        throw new Error('User ID not found');
+      }
+      console.log(token);
+      // Added token to headers
+      const response = await api2.post('/user/user/statistics', {
+        pasturl: statisticsData.pasturl,
+        score: statisticsData.score,
+        totalscore: statisticsData.totalscore,
+        topic: statisticsData.topic
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
+      
       return response.data;
     } catch (error) {
       console.error('Store statistics error:', error);
@@ -127,29 +134,9 @@ export const statisticsService = {
 
   getStatistics: async () => {
     try {
-      const userInfo = localStorage.getItem('user-info');
-      const headers = {};
-  
-      if (userInfo) {
-        const { token } = JSON.parse(userInfo);
-        console.log('Token:', token); 
-        if (token) {
-          headers.Authorization = `Bearer ${token}`; // Set the token in the Authorization header
-        }
-      }
-  
-      const config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: 'http://localhost:3000/user/user/showhistory', // Adjust URL if needed
-        headers,
-      };
-      console.log('Config:', config);
-  
-      const response = await axios.request(config);
-
-      console.log('Get statistics response:', response);
-      return response.data || [];
+      // Use api2 instance which already handles the auth header
+      const response = await api2.get('/user/user/showhistory');
+      return response.data;
     } catch (error) {
       console.error('Get statistics error:', error);
       throw error;

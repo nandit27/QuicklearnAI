@@ -36,11 +36,11 @@ exports.googleAuth = async (req, res, next) => {
         }
 
         const token = jwt.sign(
-            { email: user.email, role },
+            { id: user._id, email: user.email, role },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_TIMEOUT }
         );
-
+        console.log(user);
         res.status(200).json({
             message: 'Login successful',
             token,

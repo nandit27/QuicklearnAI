@@ -36,7 +36,8 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
           username: user.username,
           token,
           avatar: user.avatar,
-          role: activeTab
+          role: activeTab,
+          _id: user._id
         };
         
         localStorage.setItem('user-info', JSON.stringify(userInfo));
@@ -79,14 +80,15 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
         const result = await googleAuth(authResult.code);
         
         if (result.data && result.data.token) {
-          const { email, username, avatar } = result.data.user;
+          const { email, username, avatar, _id } = result.data.user;
           const token = result.data.token;
           const userInfo = { 
             email, 
             username, 
             token, 
             avatar,
-            role: activeTab
+            role: activeTab,
+            _id
           };
           
           localStorage.setItem('user-info', JSON.stringify(userInfo));

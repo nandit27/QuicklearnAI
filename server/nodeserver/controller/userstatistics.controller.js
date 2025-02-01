@@ -2,11 +2,12 @@ const Statistic = require('../models/statistic.model');
 async function storestatics(req, res) {
     try {
         const userId = req.userId;
-        console.log(userId);
         
         const { pasturl, score, totalscore, topic } = req.body;
+        console.log(req.body);
+        console.log(userId);
 
-        if (!pasturl || !score || !totalscore || !topic ) {
+        if (!pasturl || score === undefined || totalscore === undefined || !topic) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
