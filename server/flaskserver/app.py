@@ -238,7 +238,8 @@ def get_recommendations():
         if not topics:
             return jsonify({"message": "No topics found for the provided user."}), 404
 
-        prompt = f"Act as a recommendation generator , generate and recommend content for the following topics , also give five urls of YouTube videos regarding the topic .If there are multiple topics give overview of each of them and links for each topic video as well. The topics are: {', '.join(topics)}"
+        prompt = f"Act as an intelligent recommendation generator. Based on the topics provided, generate a brief yet informative overview for each topic and recommend relevant content. Additionally, provide five working YouTube video URLs for each topic that offer valuable insights, explanations, or tutorials. Ensure that the recommendations are diverse, covering different perspectives, and that the video links are accessible and relevant. " \
+                 f"The topics are: {', '.join(topics)}"
         recommendations = llama_generate_recommendations(prompt)
 
         return jsonify({
@@ -253,9 +254,10 @@ def get_recommendations():
 
 import faiss 
 from sentence_transformers import SentenceTransformer
+from huggingface_hub import login
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
-  
+login(token=os.getenv("HUGGINGFACE_TOKEN")) 
 groq_chat = ChatGroq(
     groq_api_key=groq_api_key,
     model_name=groq_model_name,
@@ -267,7 +269,7 @@ groq_sys_prompt = ChatPromptTemplate.from_template(
     "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
 )
 
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Pre-trained model for embeddings
+embedding_model = SentenceTransformer('multi-qa-mpnet-base-cos-v1')  # Pre-trained model for embeddings
 dimension = embedding_model.get_sentence_embedding_dimension()
 faiss_index = faiss.IndexFlatL2(dimension) 
 metadata_store = {}
@@ -282,7 +284,7 @@ def store_in_faiss(filename, text):
 
 
 genai.configure(api_key=os.getenv("GENAI_API_KEY"))
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("multi-qa-mpnet-base-cos-v1")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
