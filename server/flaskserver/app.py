@@ -32,12 +32,10 @@ from io import BytesIO
 from PyPDF2 import PdfReader  
 from langchain.schema import Document  
 
-app = Flask(__name__)
-
 # Database connection setup for our recommendation , uncomment it jab recommendations ki testing karoo 
 app = Flask(__name__)
 SECRET_KEY = "quick" 
-mongo_client = MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB URI
+mongo_client = MongoClient("mongodb://localhost:27017/quicklearnai")  # Replace with your MongoDB URI
 db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
 
@@ -45,7 +43,7 @@ topics_collection = db["statistics"]
 
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:5173", "http://localhost:3000"],
+        "origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
@@ -200,9 +198,11 @@ def validate_token_middleware():
                 return jsonify({"message": "Unauthorized: No token provided"}), 401
             
             try:
+                # Decoding the token using the correct jwt.decode()
                 decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
                 request.user_id = decoded.get("id")
                 request.user_role = decoded.get("role")  # Optional
+                
                 return func(*args, **kwargs)
             except jwt.ExpiredSignatureError:
                 return jsonify({"message": "Unauthorized: Token has expired"}), 401
@@ -212,7 +212,6 @@ def validate_token_middleware():
         
         return wrapper
     return middleware
-
 
 # Function to interact with LLaMA API
 def llama_generate_recommendations(prompt):
@@ -359,4 +358,4 @@ def health():
     return jsonify({"status": "ok"}) 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:5000',
+  baseURL: 'http://127.0.0.1:5001',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -112,7 +112,7 @@ export const statisticsService = {
       if (!_id) {
         throw new Error('User ID not found');
       }
-      console.log(token);
+
       // Added token to headers
       const response = await api2.post('/user/user/statistics', {
         pasturl: statisticsData.pasturl,
@@ -140,6 +140,46 @@ export const statisticsService = {
     } catch (error) {
       console.error('Get statistics error:', error);
       throw error;
+    }
+  },
+};
+
+export const recommendationService = {
+  getRecommendations: async () => {
+    try {
+      const userInfo = localStorage.getItem('user-info');
+      if (!userInfo) {
+        throw new Error('User not authenticated');
+      }
+
+      const { token } = JSON.parse(userInfo);
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      // Use api2 instance with the correct endpoint
+      const response = await api2.get('/gen/getonly', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cookie': `authtoken=${token}`
+        },
+        withCredentials: true
+      });
+
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Get recommendations error:', error);
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Failed to fetch recommendations');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error(error.message || 'Error setting up request');
+      }
     }
   },
 };
