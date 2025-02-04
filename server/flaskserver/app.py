@@ -26,20 +26,23 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from io import BytesIO
 from PyPDF2 import PdfReader  
 from langchain.schema import Document  
+import chromadb
+from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
+from langchain.document_loaders import PyPDFLoader
+from pptx import Presentation
 
-# Database connection setup for our recommendation , uncomment it jab recommendations ki testing karoo 
+app = Flask(__name__)
+ 
 app = Flask(__name__)
 SECRET_KEY = "quick" 
-mongo_client = MongoClient("mongodb://localhost:27017/quicklearnai")  # Replace with your MongoDB URI
+mongo_client = MongoClient("mongodb://localhost:27017/quicklearnai") 
 db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
-
-
 
 CORS(app, resources={
     r"/*": {
@@ -130,9 +133,6 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
 
         Transcript: {transcript}
         """
-
-        # apikey = os.getenv("GROQ_API_KEY")
-
         llm = ChatGroq(
             model="llama-3.3-70b-specdec",
             temperature=0,
@@ -213,17 +213,15 @@ def validate_token_middleware():
         return wrapper
     return middleware
 
+
 # Function to interact with LLaMA API
 def llama_generate_recommendations(prompt):
     try:
-        # Configure the API key
         api_key=os.getenv("GENAI_API_KEY")
         genai.configure(api_key=api_key)
         
-        # Create Gemini Flash model instance
         model = GenerativeModel('gemini-2.0-flash-exp')
         
-        # Generate response
         response = model.generate_content(prompt)
         
         return response.text
@@ -243,7 +241,8 @@ def get_recommendations():
         if not topics:
             return jsonify({"message": "No topics found for the provided user."}), 404
 
-        prompt = f"Act as a recommendation generator , generate and recommend content for the following topics , also give five urls of YouTube videos regarding the topic .If there are multiple topics give overview of each of them and links for each topic video as well. The topics are: {', '.join(topics)}"
+        prompt = f"Act as an intelligent recommendation generator. Based on the topics provided, generate a brief yet informative overview for each topic and recommend relevant content. Additionally, provide five working YouTube video URLs for each topic that offer valuable insights, explanations, or tutorials. Ensure that the recommendations are diverse, covering different perspectives, and that the video links are accessible and relevant. " \
+                 f"The topics are: {', '.join(topics)}"
         recommendations = llama_generate_recommendations(prompt)
 
         return jsonify({
@@ -255,21 +254,18 @@ def get_recommendations():
         print("Error:", str(e))
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
 
-
-
-# Rag ChatBOT
-
 import faiss 
 from sentence_transformers import SentenceTransformer
+from huggingface_hub import login
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
-  
-  # Initialize Groq Chat
-groq_model_name = "llama3-8b-8192"
+login(token=os.getenv("HUGGINGFACE_TOKEN")) 
+
 groq_chat = ChatGroq(
     groq_api_key=groq_api_key,
     model_name=groq_model_name,
 )
+
 
 # Define the Groq system prompt
 groq_sys_prompt = ChatPromptTemplate.from_template(
@@ -277,79 +273,77 @@ groq_sys_prompt = ChatPromptTemplate.from_template(
     "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
 )
 
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Pre-trained model for embeddings
+embedding_model = SentenceTransformer('multi-qa-mpnet-base-cos-v1')  # Pre-trained model for embeddings
 dimension = embedding_model.get_sentence_embedding_dimension()
-faiss_index = faiss.IndexFlatL2(dimension)  #
-# Initialize global variables
+faiss_index = faiss.IndexFlatL2(dimension) 
 metadata_store = {}
 pdf_storage = {}
 
-# Helper function to chunk and store in vectorstore
 def store_in_faiss(filename, text):
-    # Chunk the text
     chunks = [text[i:i+1000] for i in range(0, len(text), 1000)]
-    embeddings = embedding_model.encode(chunks)  # Generate embeddings
-    faiss_index.add(embeddings)  # Add embeddings to the FAISS index
-
-    # Store metadata for lookup (associating chunks with files)
+    embeddings = embedding_model.encode(chunks)
+    faiss_index.add(embeddings)  
     metadata_store.update({i: filename for i in range(len(metadata_store), len(metadata_store) + len(chunks))})
 
 
-@app.route('/upload', methods=['POST'])
-def upload_pdf():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
 
-    file = request.files['file']
-    file_stream = io.BytesIO(file.read())
+genai.configure(api_key=os.getenv("GENAI_API_KEY"))
+model = SentenceTransformer("multi-qa-mpnet-base-cos-v1")
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
+collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
+def extract_text_from_pdf(pdf_file):
+    reader = PdfReader(pdf_file)
+    return " ".join(page.extract_text() for page in reader.pages if page.extract_text())
+
+def extract_text_from_pptx(pptx_path):
+    prs = Presentation(pptx_path)
+    text = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text"):  
+                text.append(shape.text)
+    return " ".join(text)  
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+    
+    file_ext = os.path.splitext(file.filename)[-1].lower()
+    file_path = os.path.join("./uploads", file.filename)
+    os.makedirs("./uploads", exist_ok=True)
+    file.save(file_path)
+    
     try:
-        reader = PyPDF2.PdfReader(file_stream)
-        text = ""
-        for page in range(len(reader.pages)):
-            text += reader.pages[page].extract_text()
+        if file_ext == ".pdf":
+            content = extract_text_from_pdf(file_path)
+        elif file_ext == ".pptx":
+            content = extract_text_from_pptx(file_path)
+        else:
+            return jsonify({"error": "Unsupported file format. Only PDF and PPTX are allowed."}), 400
+        
+        embedding = model.encode(content).tolist()
+        collection.add(documents=[content], embeddings=[embedding], ids=[file.filename])
+        
+        return jsonify({"message": "File uploaded and processed successfully."}), 200
     except Exception as e:
-        return jsonify({'error': f'Failed to extract text from PDF: {str(e)}'}), 500
-
-    pdf_storage[file.filename] = text
-    store_in_faiss(file.filename, text)
-
-    return jsonify({'message': f'File {file.filename} uploaded successfully'}), 200
-
-@app.route('/ask', methods=['POST'])
-def ask_question():
+        return jsonify({"error": str(e)}), 500
+    
+    
+@app.route("/query", methods=["POST"])
+def query_file():
     data = request.get_json()
-    user_prompt = data.get('prompt')
-
-    if not user_prompt:
-        return jsonify({'error': 'Prompt is required'}), 400
-
-    # Generate the query embedding
-    query_embedding = embedding_model.encode([user_prompt])
-    distances, indices = faiss_index.search(query_embedding, k=5)  # Retrieve top-5 relevant chunks
-
-    # Extract relevant text based on FAISS results
-    relevant_chunks = [metadata_store[idx] for idx in indices[0] if idx < len(metadata_store)]
-
-    try:
-        combined_context = "\n".join([pdf_storage[chunk] for chunk in relevant_chunks])
-        context = f"The content of the document is: {combined_context}\n\nUser query: {user_prompt}"
-
-        input_data = groq_sys_prompt.format(user_prompt=user_prompt)
-        groq_response = groq_chat.invoke(input=input_data)
-        print("hey")
-        augmented_response = {
-    'contextual_response': f"Based on the document: {groq_response.content}",
-    'augmented_response': "No additional information available."  # You can adapt this if needed.
-}
-
-
-        return jsonify({'response': augmented_response}), 200
-
-    except Exception as e:
-        return jsonify({'error': f'Error processing query: {str(e)}'}), 500
-
-
+    query = data.get("query", "")
+    query_embedding = model.encode(query).tolist()
+    results = collection.query(query_embeddings=[query_embedding], n_results=3)
+    retrieved_texts = "\n".join(results["documents"][0])
+    response = genai.GenerativeModel("gemini-1.5-flash").generate_content(retrieved_texts + "\nQuestion: " + query)
+    return jsonify({"answer": response.text})
 
 
 
@@ -359,3 +353,4 @@ def health():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+    
