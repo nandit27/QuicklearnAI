@@ -9,9 +9,10 @@ import Footer from './components/Footer'
 import QuizGenerator from './pages/quiz'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
-import StudentDashboard from './components/StudentDashboard'
 import ProfilePage from './components/ProfilePage'
 import SummaryPage from './pages/SummaryPage'
+import TeacherDashboard from './components/TeacherDashboard'
+import RecommendationPage from './pages/recommendation'
 
 function Home() {
   const contentRef = useRef()
@@ -67,7 +68,6 @@ function App() {
   const NavbarWrapper = () => {
     const navigate = useNavigate();
 
-
     return (
       <Navbar 
         onLoginClick={() => setShowLoginModal(true)}
@@ -83,9 +83,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<ProfilePage />} />
+          <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/quiz" element={<QuizGenerator />} />
           <Route path="/summary" element={<SummaryPage />} />
+          <Route path="/recommendations" element={<RecommendationPage />} />
         </Routes>
         
         <LoginModal 

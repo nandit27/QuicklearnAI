@@ -98,13 +98,17 @@ const QuizGenerator = () => {
     });
 
     try {
-      // Log the data being sent
+      const userInfo = localStorage.getItem('user-info');
+      if (!userInfo) {
+        throw new Error('User not authenticated');
+      }
+
+      // Create statistics data with the correct user ID
       const statisticsData = {
         pasturl: youtubeLink,
         score: score,
         totalscore: quizData.quiz.length,
         topic: summaryData.title || 'General Knowledge',
-        student: 'Nandit'
       };
       console.log('Sending statistics data:', statisticsData);
 
@@ -117,10 +121,10 @@ const QuizGenerator = () => {
         variant: "default",
       });
     } catch (error) {
-      console.error('Failed to store quiz statistics:', error.response?.data || error);
+      console.error('Failed to store quiz statistics:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.error || "Failed to save quiz results. Please try again.",
+        description: error.message || "Failed to save quiz results. Please try again.",
         variant: "destructive",
       });
     }

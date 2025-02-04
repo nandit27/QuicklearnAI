@@ -8,7 +8,7 @@ langchain
 python-pptx
 youtube-transcript-api
 flask-cors
-re
+regex
 pymongo
 jwt
 werkzeug
