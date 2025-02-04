@@ -22,7 +22,7 @@ from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-# from langchain_community.indexes import VectorstoreIndexCreator  # Commented out due to ImportError
+#from langchain_community.indexes import VectorstoreIndexCreator  # Commented out due to ImportError
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
@@ -33,7 +33,7 @@ from langchain.schema import Document
 import chromadb
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
-from langchain.document_loaders import PyPDFLoader
+#from langchain.document_loaders import PyPDFLoader
 from pptx import Presentation
 
 app = Flask(__name__)
@@ -217,16 +217,20 @@ def validate_token_middleware():
 # Function to interact with LLaMA API
 def llama_generate_recommendations(prompt):
     try:
-        api_key=os.getenv("GENAI_API_KEY")
-        genai.configure(api_key=api_key)
+        llm = ChatGroq(
+            model="llama-3.3-70b-specdec",
+            temperature=0,
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
         
-        model = GenerativeModel('gemini-2.0-flash-exp')
+        response = llm.invoke(prompt)
         
-        response = model.generate_content(prompt)
-        
-        return response.text
+        if hasattr(response, 'content'):
+            return response.content
+        else:
+            return "Error: No content in response"
     except Exception as e:
-        return f"Error connecting to Gemini API: {e}"
+        return f"Error connecting to Groq API: {e}"
     
 @app.route('/getonly', methods=['GET'])
 @validate_token_middleware()

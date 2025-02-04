@@ -10,9 +10,9 @@ import QuizGenerator from './pages/quiz'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
 import ProfilePage from './components/ProfilePage'
-import SummaryPage from './pages/SummaryPage'
 import TeacherDashboard from './components/TeacherDashboard'
 import RecommendationPage from './pages/recommendation'
+import ChatBot from './pages/ChatBot'
 
 function Home() {
   const contentRef = useRef()
@@ -86,7 +86,7 @@ function App() {
           <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/quiz" element={<QuizGenerator />} />
-          <Route path="/summary" element={<SummaryPage />} />
+          <Route path="/chatbot" element={<ChatBot />} />
           <Route path="/recommendations" element={<RecommendationPage />} />
         </Routes>
         

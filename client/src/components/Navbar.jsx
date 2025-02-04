@@ -40,7 +40,7 @@ function Navbar({ onSignUpClick, onLoginClick }) {
             
             <div className="hidden md:flex items-center space-x-8">
               <Link to="/" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Home</Link>
-              <Link to="/summary" className="text-l font-medium hover:text-[#00FF9D] transition-colors">ChatBot</Link>
+              <Link to="/chatbot" className="text-l font-medium hover:text-[#00FF9D] transition-colors">ChatBot</Link>
               <Link to="/quiz" className="text-l font-medium hover:text-[#00FF9D] transition-colors">Chat With QuickLearnAI</Link>
               <Link 
                 to="/recommendations" 

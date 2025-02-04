@@ -183,3 +183,62 @@ export const recommendationService = {
     }
   },
 };
+
+export const documentService = {
+  uploadPdf: async (file) => {
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Get user token
+      const userInfo = localStorage.getItem('user-info');
+      let token = null;
+      if (userInfo) {
+        const { token: userToken } = JSON.parse(userInfo);
+        token = userToken;
+      }
+
+      // Make request using api2 instance (which points to localhost:3000)
+      const response = await api2.post('/gen/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        withCredentials: true
+      });
+
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to upload file');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  },
+  
+  queryDocument: async (query) => {
+    try {
+      const response = await api2.post('/gen/query', {
+        query: query
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to process query');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  }
+};
