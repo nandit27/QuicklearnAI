@@ -214,16 +214,20 @@ def validate_token_middleware():
 
 def llama_generate_recommendations(prompt):
     try:
-        api_key=os.getenv("GENAI_API_KEY")
-        genai.configure(api_key=api_key)
+        llm = ChatGroq(
+            model="llama-3.3-70b-specdec",
+            temperature=0,
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
         
-        model = GenerativeModel('gemini-2.0-flash-exp')
+        response = llm.invoke(prompt)
         
-        response = model.generate_content(prompt)
-        
-        return response.text
+        if hasattr(response, 'content'):
+            return response.content
+        else:
+            return "Error: No content in response"
     except Exception as e:
-        return f"Error connecting to Gemini API: {e}"
+        return f"Error connecting to Groq API: {e}"
     
 @app.route('/getonly', methods=['GET'])
 @validate_token_middleware()

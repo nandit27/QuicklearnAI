@@ -3,9 +3,10 @@ const student = require('../models/student.model');
 const teacher = require('../models/teacher.model');
 const jwt = require('jsonwebtoken');
 
+const redis = require('../redis.connection');
 async function handlelogin(req, res) {
     const { email, password, role } = req.body;
-    
+
     if (!email || !password || !role) {
         return res.status(400).json({ message: 'Email, password, and role are required' });
     }
@@ -19,6 +20,19 @@ async function handlelogin(req, res) {
             }
         } else if (role === 'teacher') {
             user = await teacher.findOne({ email });
+            if (user == null) {
+                return res.status(401).json({ message: 'Invalid credentials' });
+            }
+
+            user.isOnline = true;
+            //insert the user to the redis
+            redis.sadd('online_teachers', user._id);
+            const subjects = user.subject.map(sub => ({
+                field: sub.field,
+                subcategory: sub.subcategory
+            }));
+
+            redis.hmset(`teacher:${user._id}`, 'email', user.email, 'username', user.username, 'rating', user.rating, 'doubtsSolved', user.doubtsSolved, 'field', subjects[0].field, "subcategory", subjects[0].subcategory, 'certification', JSON.stringify(user.certification));
             if (!user || user.password !== password) {
                 return res.status(401).json({ message: 'Invalid credentials' });
             }
@@ -27,31 +41,34 @@ async function handlelogin(req, res) {
         }
 
         const token = jwt.sign(
-            { id: user._id, role, email: user.email }, 
+            { id: user._id, role, email: user.email },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        // Set HTTP-only cookie
         res.cookie('authtoken', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            maxAge: 24 * 60 * 60 * 1000
         });
 
-        // Return user info without sensitive data
         const userResponse = {
             _id: user._id,
             email: user.email,
             username: user.username,
+            isOnline: user.isOnline,
             avatar: user.avatar,
-            role
+            role,
+            rating: user.rating,
+            doubtsSolved: user.doubtsSolved,
+            subject: user.subject,
+            certification: user.certification
         };
 
-        res.status(200).json({ 
+        res.status(200).json({
             message: 'Login successful',
             user: userResponse,
-            token 
+            token
         });
     } catch (err) {
         console.error('Login error:', err);
@@ -62,11 +79,11 @@ async function handlelogin(req, res) {
 async function handleregister(req, res) {
     try {
         const { email, password, role, username, phone } = req.body;
-        
+
         // Basic validation
         if (!email || !role || !username) {
-            return res.status(400).json({ 
-                message: 'Email, role, and username are required' 
+            return res.status(400).json({
+                message: 'Email, role, and username are required'
             });
         }
 
@@ -90,13 +107,13 @@ async function handleregister(req, res) {
             });
 
         } else if (role === 'teacher') {
-            const { 
-                highestQualification, 
-                experience, 
-                subject, 
-                certification 
+            const {
+                highestQualification,
+                experience,
+                subject,
+                certification
             } = req.body;
-            
+
             user = await teacher.findOne({ email });
             if (user) {
                 return res.status(400).json({ message: 'Teacher already exists' });
@@ -148,9 +165,9 @@ async function handleregister(req, res) {
         });
     } catch (err) {
         console.error('Registration error:', err);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Internal server error',
-            error: err.message 
+            error: err.message
         });
     }
 }
