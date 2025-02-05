@@ -4,12 +4,13 @@ from youtube_transcript_api.formatters import TextFormatter
 from flask_cors import CORS 
 import re
 import json
-from langchain.llms import GPT4All  
+from langchain_community.llms import GPT4All  
 from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 load_dotenv()
 from pymongo import MongoClient
+import PyPDF2
 import google.generativeai as genai
 import io
 from google.generativeai import GenerativeModel
@@ -20,12 +21,11 @@ import logging
 from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import PyPDFLoader
-from langchain.indexes import VectorstoreIndexCreator
-from langchain.vectorstores import FAISS
-from langchain.embeddings import SentenceTransformerEmbeddings
-from langchain.document_loaders import PyMuPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+# from langchain_community.indexes import VectorstoreIndexCreator  # Commented out due to ImportError
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain.chains import RetrievalQA
 from io import BytesIO
 from PyPDF2 import PdfReader  
@@ -40,13 +40,13 @@ app = Flask(__name__)
  
 app = Flask(__name__)
 SECRET_KEY = "quick" 
-mongo_client = MongoClient("mongodb://localhost:27017/") 
+mongo_client = MongoClient("mongodb://localhost:27017/quicklearnai") 
 db = mongo_client["quicklearnai"]
 topics_collection = db["statistics"]
 
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:5173", "http://localhost:3000"],
+        "origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
@@ -101,7 +101,7 @@ def generate_summary_and_quiz(transcript, num_questions, language, difficulty):
      
         Summarize the following transcript by identifying the key topics covered, and provide a detailed summary of each topic in 6-7 sentences.
         Each topic should be labeled clearly as "Topic X", where X is the topic name. Provide the full summary for each topic in English, even if the transcript is in a different language.
-        Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or “ ”).
+        Strictly ensure that possessives (e.g., John's book) and contractions (e.g., don't) use apostrophes (') instead of quotation marks (" or "  ").
 
         If the transcript contains 'Fake Transcript', do not generate any quiz or summary.
 
@@ -198,9 +198,11 @@ def validate_token_middleware():
                 return jsonify({"message": "Unauthorized: No token provided"}), 401
             
             try:
+                # Decoding the token using the correct jwt.decode()
                 decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
                 request.user_id = decoded.get("id")
                 request.user_role = decoded.get("role")  # Optional
+                
                 return func(*args, **kwargs)
             except jwt.ExpiredSignatureError:
                 return jsonify({"message": "Unauthorized: Token has expired"}), 401
@@ -212,6 +214,7 @@ def validate_token_middleware():
     return middleware
 
 
+# Function to interact with LLaMA API
 def llama_generate_recommendations(prompt):
     try:
         llm = ChatGroq(
@@ -255,19 +258,20 @@ def get_recommendations():
         print("Error:", str(e))
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
 
-
 import faiss 
 from sentence_transformers import SentenceTransformer
 from huggingface_hub import login
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model_name = "llama3-8b-8192"
 login(token=os.getenv("HUGGINGFACE_TOKEN")) 
+
 groq_chat = ChatGroq(
     groq_api_key=groq_api_key,
     model_name=groq_model_name,
 )
 
 
+# Define the Groq system prompt
 groq_sys_prompt = ChatPromptTemplate.from_template(
     "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
     "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
@@ -346,9 +350,11 @@ def query_file():
     return jsonify({"answer": response.text})
 
 
+
 @app.route('/', methods=['GET'])
 def health():
     return jsonify({"status": "ok"}) 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
+    

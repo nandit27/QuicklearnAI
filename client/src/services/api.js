@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:5000',
+  baseURL: 'http://127.0.0.1:5001',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -104,20 +104,27 @@ export const statisticsService = {
   storeStatistics: async (statisticsData) => {
     try {
       const userInfo = localStorage.getItem('user-info');
-      const headers = {};
-      
-      if (userInfo) {
-        const { token } = JSON.parse(userInfo);
-        console.log('Token:', token); // Ensure token is present and valid
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
-        }
+      if (!userInfo) {
+        throw new Error('User not authenticated');
       }
 
-      const response = await api2.post('/user/user/statistics', statisticsData, { 
-        headers,
-        withCredentials: true 
+      const { _id, token } = JSON.parse(userInfo);
+      if (!_id) {
+        throw new Error('User ID not found');
+      }
+
+      // Added token to headers
+      const response = await api2.post('/user/user/statistics', {
+        pasturl: statisticsData.pasturl,
+        score: statisticsData.score,
+        totalscore: statisticsData.totalscore,
+        topic: statisticsData.topic
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
+      
       return response.data;
     } catch (error) {
       console.error('Store statistics error:', error);
@@ -127,32 +134,52 @@ export const statisticsService = {
 
   getStatistics: async () => {
     try {
-      const userInfo = localStorage.getItem('user-info');
-      const headers = {};
-  
-      if (userInfo) {
-        const { token } = JSON.parse(userInfo);
-        console.log('Token:', token); 
-        if (token) {
-          headers.Authorization = `Bearer ${token}`; // Set the token in the Authorization header
-        }
-      }
-  
-      const config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: 'http://localhost:3000/user/user/showhistory', // Adjust URL if needed
-        headers,
-      };
-      console.log('Config:', config);
-  
-      const response = await axios.request(config);
-
-      console.log('Get statistics response:', response);
-      return response.data || [];
+      // Use api2 instance which already handles the auth header
+      const response = await api2.get('/user/user/showhistory');
+      return response.data;
     } catch (error) {
       console.error('Get statistics error:', error);
       throw error;
+    }
+  },
+};
+
+export const recommendationService = {
+  getRecommendations: async () => {
+    try {
+      const userInfo = localStorage.getItem('user-info');
+      if (!userInfo) {
+        throw new Error('User not authenticated');
+      }
+
+      const { token } = JSON.parse(userInfo);
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      // Use api2 instance with the correct endpoint
+      const response = await api2.get('/gen/getonly', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cookie': `authtoken=${token}`
+        },
+        withCredentials: true
+      });
+
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Get recommendations error:', error);
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Failed to fetch recommendations');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error(error.message || 'Error setting up request');
+      }
     }
   },
 };

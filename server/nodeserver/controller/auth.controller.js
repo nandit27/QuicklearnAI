@@ -40,7 +40,6 @@ exports.googleAuth = async (req, res, next) => {
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_TIMEOUT }
         );
-
         res.status(200).json({
             message: 'Login successful',
             token,
