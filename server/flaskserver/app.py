@@ -173,8 +173,7 @@ def quiz():
         if transcript:
             summary_and_quiz = generate_summary_and_quiz(transcript, num_questions, language, difficulty)
             
-            if summary_and_quiz:
-                print(summary_and_quiz) 
+            if summary_and_quiz: 
                 return jsonify(summary_and_quiz)
 
             else:
@@ -288,11 +287,8 @@ def store_in_faiss(filename, text):
     embeddings = embedding_model.encode(chunks)
     faiss_index.add(embeddings)  
     metadata_store.update({i: filename for i in range(len(metadata_store), len(metadata_store) + len(chunks))})
-
-
-
 genai.configure(api_key=os.getenv("GENAI_API_KEY"))
-model = SentenceTransformer("multi-qa-mpnet-base-cos-v1")
+model = SentenceTransformer("all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
@@ -331,14 +327,15 @@ def upload_file():
         else:
             return jsonify({"error": "Unsupported file format. Only PDF and PPTX are allowed."}), 400
         
+        existing_ids = collection.get()["ids"]
+        if existing_ids:
+            collection.delete(ids=existing_ids)
         embedding = model.encode(content).tolist()
         collection.add(documents=[content], embeddings=[embedding], ids=[file.filename])
         
         return jsonify({"message": "File uploaded and processed successfully."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-    
 @app.route("/query", methods=["POST"])
 def query_file():
     data = request.get_json()
@@ -348,8 +345,6 @@ def query_file():
     retrieved_texts = "\n".join(results["documents"][0])
     response = genai.GenerativeModel("gemini-1.5-flash").generate_content(retrieved_texts + "\nQuestion: " + query)
     return jsonify({"answer": response.text})
-
-
 
 @app.route('/', methods=['GET'])
 def health():

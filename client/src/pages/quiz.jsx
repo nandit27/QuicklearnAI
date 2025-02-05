@@ -19,6 +19,7 @@ const QuizGenerator = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [quizStats, setQuizStats] = useState(null);
   const [showStats, setShowStats] = useState(false);
+  const [quizTitle, setQuizTitle] = useState('');
   
   // Form state
   const [youtubeLink, setYoutubeLink] = useState('');
@@ -62,7 +63,7 @@ const QuizGenerator = () => {
         selectedDifficulty
       );
       
-      console.log('Quiz Response:', response);
+      console.log('Quiz Service Response:', response);
       
       if (!response || !response.quiz || !response.summary) {
         throw new Error('Invalid quiz data format');
@@ -74,6 +75,9 @@ const QuizGenerator = () => {
       });
       setSummaryData(response.summary);
       setShowSummary(true);
+      
+      console.log('Setting Quiz Title:', response.title);
+      setQuizTitle(response.title || 'Unknown Topic');
       
     } catch (error) {
       setError(error.message || 'Failed to generate quiz. Please try again.');
@@ -108,7 +112,7 @@ const QuizGenerator = () => {
         pasturl: youtubeLink,
         score: score,
         totalscore: quizData.quiz.length,
-        topic: summaryData.title || 'General Knowledge',
+        topic: quizTitle || 'Unknown Topic',
       };
       console.log('Sending statistics data:', statisticsData);
 
@@ -281,7 +285,7 @@ const QuizGenerator = () => {
       <div className="flex flex-col items-center px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-6xl font-bold mb-4 text-white mt-12">
+          <h1 className="text-6xl font-bold mb-4 text-white">
             Quick<span className="text-[#00FF9D]">Learn</span>AI
           </h1>
           <p className="text-xl text-gray-400">

@@ -75,20 +75,32 @@ export const quizService = {
       const response = await api.post('/quiz', {
         link,
         qno,
-        difficulty,
+        difficulty
       });
       
       if (!response.data || !response.data.questions || !response.data.summary) {
         throw new Error('Invalid response format from server');
       }
 
-      // Return both summary and quiz data in the expected format
-      return {
-        summary: response.data.summary,
-        quiz: response.data.questions[difficulty]
-      };
+      // Handle all possible ways to get the topic
+      const rawResponse = response.data;
+      let topicName = rawResponse.topic_name || rawResponse.topic;
       
+      // If no direct topic field, try to extract from summary
+      if (!topicName && rawResponse.summary) {
+        // Get the first topic key from summary (e.g., "Topic Life Guidance")
+        const firstTopicKey = Object.keys(rawResponse.summary)[0];
+        // Extract the topic name after "Topic " prefix
+        topicName = firstTopicKey?.replace('Topic ', '') || 'Unknown Topic';
+      }
+
+      return {
+        summary: rawResponse.summary,
+        quiz: rawResponse.questions[difficulty],
+        title: topicName
+      };
     } catch (error) {
+      console.error('Error in generateQuiz:', error);
       if (error.response) {
         throw new Error(error.response.data.error || 'Failed to generate quiz');
       } else if (error.request) {

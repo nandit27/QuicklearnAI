@@ -1,50 +1,105 @@
 import SearchBar from "./SearchBar"
+import { motion } from "framer-motion"
 
 function Hero() {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="inline-flex items-center space-x-2 bg-white/10 rounded-full px-4 py-1 mb-8">
+    <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 z-0">
+        <motion.div 
+          className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-r from-[#00FF9D]/20 to-purple-500/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 90, 0],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+          }}
+        />
+        <motion.div 
+          className="absolute bottom-20 right-20 w-96 h-96 bg-gradient-to-l from-[#00FF9D]/20 to-blue-500/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1.2, 1, 1.2],
+            rotate: [0, -90, 0],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+          }}
+        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center space-x-2 bg-white/10 rounded-full px-4 py-1 mb-8"
+        >
           <span className="h-2 w-2 bg-secondary rounded-full"></span>
           <span className="text-sm">Powered by AI/OCR engine</span>
-        </div>
+        </motion.div>
         
-        <h1 className="text-5xl font-bold mb-6">
-          Summarising your<br />content with AI
-        </h1>
+        <motion.h1 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-6xl font-bold mb-6 relative"
+        >
+          Summarising your
+          <br />
+          content with{" "}
+          <span className="relative">
+            AI
+            <motion.div 
+              className="absolute -bottom-2 left-0 w-full h-1 bg-[#00FF9D]"
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 0.8, delay: 1 }}
+            />
+          </span>
+        </motion.h1>
         
-        <p className="text-gray-400 text-lg mb-12 max-w-2xl mx-auto">
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="text-gray-400 text-xl mb-12 max-w-2xl mx-auto"
+        >
           An open source content management system that uses AI to automate
           various aspects of content creation, optimization, and distribution.
-        </p>
+        </motion.p>
         
-        <div className="relative max-w-2xl mx-auto">
-          {/* <input 
-            type="text"
-            placeholder="Search..." 
-            className="w-full px-6 py-4 bg-black/40 backdrop-blur-md border border-[#00FF9D] rounded-2xl text-white placeholder:text-gray-400 transition-all duration-300 hover:border-[#00FF9D]/50 hover:ring-4 hover:ring-[#00FF9D]/20 hover:bg-black/60"
-          />
-          <button 
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#00FF9D] transition-colors duration-300"
-            aria-label="Search"
-          >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-6 w-6" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-              />
-            </svg>
-          </button>*/}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="relative max-w-2xl mx-auto"
+        >
           <SearchBar />
-        </div> 
+        </motion.div>
+
+        {/* Stats Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.8 }}
+          className="grid grid-cols-3 gap-8 mt-20 max-w-3xl mx-auto"
+        >
+          <div className="text-center">
+            <h3 className="text-4xl font-bold text-[#00FF9D]">10K+</h3>
+            <p className="text-gray-400 mt-2">Active Users</p>
+          </div>
+          <div className="text-center">
+            <h3 className="text-4xl font-bold text-[#00FF9D]">50K+</h3>
+            <p className="text-gray-400 mt-2">Documents Processed</p>
+          </div>
+          <div className="text-center">
+            <h3 className="text-4xl font-bold text-[#00FF9D]">99%</h3>
+            <p className="text-gray-400 mt-2">Accuracy Rate</p>
+          </div>
+        </motion.div>
       </div>
     </div>
   )
