@@ -1,4 +1,4 @@
 .env
 venv/
 uploads/
-chromadb/
+chroma_db/

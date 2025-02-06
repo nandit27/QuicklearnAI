@@ -1,0 +1,135 @@
+const Doubt = require('../models/doubt.model');
+const redis = require('../redis.connection');
+const io = require('../socket.server');
+async function matchdoubt(req, res) {
+
+    try {
+        const { doubtId } = req.params;
+        console.log(doubtId);
+        
+        const doubt = await Doubt.findById(doubtId);
+        console.log(doubt);
+        
+        if (!doubt) return res.status(404).json({ error: "Doubt not found" });
+
+        const subject = doubt.topics[0];
+        const subcategory = doubt.topics[1];
+
+        const teacherKeys = await redis.keys('teacher:*');
+        let matchedTeachers = [];
+
+        for (const key of teacherKeys) {
+            const teacher = await redis.hgetall(key);
+            if (teacher.field === subject && teacher.subcategory === subcategory) {
+                matchedTeachers.push({
+                    _id: key.split(':')[1],
+                    email: teacher.email,
+                    username: teacher.username,
+                    rating: parseFloat(teacher.rating),
+                    doubtsSolved: parseInt(teacher.doubtsSolved),
+                    field: teacher.field,
+                    subcategory: teacher.subcategory,
+                    certification: JSON.parse(teacher.certification)
+                });
+            }
+        }
+
+        // If no exact match found, find teachers by subject only
+        if (matchedTeachers.length === 0) {
+            for (const key of teacherKeys) {
+                const teacher = await redis.hgetall(key);
+                if (teacher.field === subject) {
+                    matchedTeachers.push({
+                        _id: key.split(':')[1],
+                        email: teacher.email,
+                        username: teacher.username,
+                        rating: parseFloat(teacher.rating),
+                        doubtsSolved: parseInt(teacher.doubtsSolved),
+                        field: teacher.field,
+                        subcategory: teacher.subcategory,
+                        certification: JSON.parse(teacher.certification)
+                    });
+                }
+            }
+        }
+
+        matchedTeachers = matchedTeachers.sort((a, b) => {
+            if (b.rating === a.rating) {
+                return b.doubtsSolved - a.doubtsSolved;
+            }
+            return b.rating - a.rating;
+        }).slice(0, 3);
+
+        let assignedTeacher = matchedTeachers.length > 0 ? matchedTeachers[0]._id : null;
+
+        // If no teacher is found, return pending status
+        if (!assignedTeacher) {
+            return res.status(200).json({ message: "No online teacher found, doubt remains pending." });
+        }
+
+        // Assign the teacher to the doubt
+        doubt.assignedTeacher = assignedTeacher;
+        doubt.status = "assigned";
+        await doubt.save();
+
+        // Update Redis doubt status
+        await redis.hset(`doubt:${doubtId}`, "status", "assigned", "teacher", assignedTeacher);
+
+        
+        io.to(assignedTeacher).emit("new_doubt", {
+            doubtId,
+            student: doubt.student,
+            topic: doubt.topics
+        });
+        console.log(`Doubt ${doubtId} assigned to teacher ${assignedTeacher} and notified`);
+        res.status(200).json({
+            message: "Teacher assigned successfully",
+            doubtId,
+            assignedTeacher
+        });
+    } catch (error) {
+        console.error("Error matching teacher:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+async function getPendingDoubts(req, res) {
+    try {
+        // Get all pending doubts from Redis
+        const pendingDoubts = await redis.lrange("doubt:pending", 0, -1);
+
+        if (!pendingDoubts.length) {
+            return res.status(200).json({ message: "No pending doubts" });
+        }
+
+        // Fetch full doubt details from MongoDB
+        const doubts = await Doubt.find({ _id: { $in: pendingDoubts } });
+
+        res.status(200).json(doubts);
+    } catch (error) {
+        console.error("Error fetching pending doubts:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+async function getTeacherDoubts(req, res) {
+
+    try {
+        const { teacherId } = req.params;
+
+        // Fetch doubts assigned to the teacher from Redis
+        const doubts = await Doubt.find({ assignedTeacher: teacherId });
+
+        if (!doubts.length) {
+            return res.status(200).json({ message: "No assigned doubts" });
+        }
+
+        res.status(200).json(doubts);
+    } catch (error) {
+        console.error("Error fetching teacher's doubts:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+
+}
+
+module.exports = { matchdoubt, getPendingDoubts, getTeacherDoubts };
