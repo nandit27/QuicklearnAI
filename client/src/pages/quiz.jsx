@@ -6,6 +6,7 @@ import { quizService } from '../services/api';
 import FlashCard from '../components/FlashCard';
 import { useToast } from "@/components/ui/use-toast";
 import { statisticsService } from '../services/api';
+import { Link } from 'react-router-dom'
 
 const QuizGenerator = () => {
   const { toast } = useToast();
@@ -24,6 +25,9 @@ const QuizGenerator = () => {
   // Form state
   const [youtubeLink, setYoutubeLink] = useState('');
   const [questionCount, setQuestionCount] = useState(5);
+
+  // Add navigate hook
+  const navigate = useNavigate();
 
   const handleDifficultySelect = (difficulty) => {
     setSelectedDifficulty(difficulty.toLowerCase());
@@ -161,6 +165,17 @@ const QuizGenerator = () => {
     }
   };
 
+  const handleMindMapNavigation = () => {
+    if (!youtubeLink) {
+        alert("Please enter a YouTube URL first!");
+        return;
+    }
+    
+    // Navigate with the encoded URL
+    const encodedUrl = encodeURIComponent(youtubeLink);
+    window.location.href = `/mindmap?url=${encodedUrl}`; // Using direct navigation
+  };
+
   // Show quiz if active
   if (showQuiz && quizData) {
     return <QuizDisplay 
@@ -206,6 +221,14 @@ const QuizGenerator = () => {
             >
               Start Quiz
             </button>
+            <Link to="/mindmap">
+              <button 
+                onClick={handleMindMapNavigation}
+                className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
+              >
+                Mind Map
+              </button>
+            </Link>
             <button
               onClick={handleGenerateSummary}
               disabled={loading}

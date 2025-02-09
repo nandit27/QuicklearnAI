@@ -16,5 +16,5 @@ boto3
 langchain-core
 langchain-groq
 faiss-cpu
-langchain-embeddings
 PyMuPDF
+langchain-embeddings

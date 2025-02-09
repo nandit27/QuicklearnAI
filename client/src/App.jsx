@@ -13,6 +13,7 @@ import ProfilePage from './components/ProfilePage'
 import TeacherDashboard from './components/TeacherDashboard'
 import RecommendationPage from './pages/recommendation'
 import ChatBot from './pages/ChatBot'
+import MindMap from './pages/MindMap'
 
 function Home() {
   const contentRef = useRef()
@@ -88,6 +89,7 @@ function App() {
           <Route path="/quiz" element={<QuizGenerator />} />
           <Route path="/chatbot" element={<ChatBot />} />
           <Route path="/recommendations" element={<RecommendationPage />} />
+          <Route path="/mindmap" element={<MindMap />} />
         </Routes>
         
         <LoginModal 

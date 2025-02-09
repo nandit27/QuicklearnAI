@@ -346,6 +346,70 @@ def query_file():
     response = genai.GenerativeModel("gemini-1.5-flash").generate_content(retrieved_texts + "\nQuestion: " + query)
     return jsonify({"answer": response.text})
 
+# MindMap
+
+def fetch_youtube_transcript(video_url):
+    try:
+        video_id = video_url.split("v=")[-1]
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'hi'])
+        return " ".join([entry["text"] for entry in transcript])  # Clean transcript
+    except Exception as e:
+        return {"error": f"Error fetching transcript: {str(e)}"}
+
+def generate_mind_map(content):
+    prompt = f"""
+    Extract key concepts from the following text and structure them into a JSON-based mind map.
+    Organize it into: "Topic" -> "Subtopics" -> "Details".
+
+    Text: {content}
+
+    Output **ONLY** valid JSON in this format (no extra text, no explanations):
+    {{
+        "topic": "Main Topic",
+        "subtopics": [
+            {{"name": "Subtopic 1", "details": ["Detail 1", "Detail 2"]}},
+            {{"name": "Subtopic 2", "details": ["Detail 3", "Detail 4"]}}
+        ]
+    }}
+    """
+
+    llm = ChatGroq(
+        model="llama-3.3-70b-specdec",
+        temperature=0,
+        groq_api_key=os.getenv("GROQ_API_KEY"),
+    )      
+
+    response = llm.invoke(prompt)
+
+    # Ensure response is a string
+    raw_json = response.content.strip() if hasattr(response, "content") else str(response)
+
+    # Remove unwanted formatting (like triple backticks and newlines)
+    cleaned_json_str = raw_json.replace("```json", "").replace("```", "").replace("\n", "").strip()
+
+    # Convert to valid JSON
+    try:
+        return json.loads(cleaned_json_str)
+    except json.JSONDecodeError:
+        return {"error": f"Invalid JSON response: {cleaned_json_str}"}
+
+@app.route("/generate_mind_map", methods=['GET'])
+def generate_mind_map_endpoint():
+    print("✅ Endpoint called!")  # Debugging
+    video_url = request.args.get('video_url')
+
+    if not video_url:
+        return jsonify({"error": "No video URL provided"}), 400
+
+    transcript = fetch_youtube_transcript(video_url)
+    if isinstance(transcript, dict) and "error" in transcript:
+        return jsonify(transcript), 400
+
+    mind_map = generate_mind_map(transcript)
+   
+    return jsonify(mind_map)
+
+
 @app.route('/', methods=['GET'])
 def health():
     return jsonify({"status": "ok"}) 
