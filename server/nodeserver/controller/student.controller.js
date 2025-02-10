@@ -75,7 +75,7 @@ async function getCategoryFromGroq(text) {
             apiKey: process.env.GROQ_API_KEY,
             model: "llama3-8b-8192",
             temperature: 0,
-            maxRetries: 2
+            maxRetries: 3,
         });
 
         const prompt = `Act as a query analyzer. Categorize the following question text into one of these primary categories: Mathematics, Physics, Chemistry, Biology, Computer Science, or Other.  
@@ -105,8 +105,9 @@ async function getCategoryFromGemini(text) {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
         const prompt = `Act as a query analyzer. Categorize the following question text into one of these primary categories: Mathematics, Physics, Chemistry, Biology, Computer Science, or Other.  
-        If the question belongs to a subdomain (e.g., Calculus, Linear Algebra with Mathematics; Computer Science with Operating Systems, Networks , classify it under the broader category along with the subdomain. 
-        Only respond with the category name and also tell me which teacher subject this question belongs to. format should be "Computer Science : Operating System : Networks" or "Mathematics : Calculus ".
+        If the question belongs to a subdomain (e.g.,chemistry with Physical chemistry or chemistry with Organic chemistry  ,Calculus, Linear Algebra with Mathematics; Computer Science with Operating Systems, Networks , classify it under the broader category along with the subdomain. 
+        Only respond with the category name and also tell me which teacher subject this question belongs to.
+        !important: format should be "Computer Science : Operating System : Networks" or "Mathematics : Calculus ".
         Here is the text: ${text}`;
 
         const result = await model.generateContent(prompt);
@@ -121,6 +122,7 @@ async function getCategoryFromGemini(text) {
 }
 
 function parseCategoryText(text) {
+    
     const categories = text.split(", ").map(entry => {
         const [field, subcategory] = entry.split(" : ");
         return { Field: field.trim(), Subcategory: subcategory.trim() };
