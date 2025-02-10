@@ -20,7 +20,7 @@ io.on("connection", (socket) => {
     socket.on("new_doubt", async ({ doubtId, student, topic }) => {
         // Find an available teacher (this is just a placeholder logic)
         const assignedTeacher = Object.keys(activeChats).find(userId => activeChats[userId] && userId.startsWith('teacher'));
-        console.log("in new doubt",assignedTeacher);
+        console.log("in new doubt", assignedTeacher);
         if (assignedTeacher) {
             // Emit new doubt to the assigned teacher
             io.to(activeChats[assignedTeacher]).emit("new_doubt", {
@@ -33,29 +33,29 @@ io.on("connection", (socket) => {
             console.log(`No available teacher for doubt ${doubtId} from student ${student}`);
         }
     });
-        // When a message is sent
-        socket.on("chat_message", async ({ doubtId, sender, message }) => {
-            if (!doubtId || !sender || !message) return;
+    // When a message is sent
+    socket.on("chat_message", async ({ doubtId, sender, message }) => {
+        if (!doubtId || !sender || !message) return;
 
-            // Save message to MongoDB
-            const newMessage = new Chat({ doubtId, sender, message });
-            await newMessage.save();
+        // Save message to MongoDB
+        const newMessage = new Chat({ doubtId, sender, message });
+        await newMessage.save();
 
-            // Emit message to all users in the chat room
-            io.to(doubtId).emit("chat_message", { doubtId, sender, message });
-            console.log(`Message sent in doubt ${doubtId}: ${message}`);
-        });
-
-        // Handle user disconnect
-        socket.on("disconnect", () => {
-            Object.keys(activeChats).forEach((userId) => {
-                if (activeChats[userId] === socket.id) {
-                    delete activeChats[userId];
-                    console.log(`User ${userId} disconnected`);
-                }
-            });
-        });
+        // Emit message to all users in the chat room
+        io.to(doubtId).emit("chat_message", { doubtId, sender, message });
+        console.log(`Message sent in doubt ${doubtId}: ${message}`);
     });
 
-    console.log(`WebSocket server running on port ${socketPort}`);
-    module.exports = io;
+    // Handle user disconnect
+    socket.on("disconnect", () => {
+        Object.keys(activeChats).forEach((userId) => {
+            if (activeChats[userId] === socket.id) {
+                delete activeChats[userId];
+                console.log(`User ${userId} disconnected`);
+            }
+        });
+    });
+});
+
+console.log(`WebSocket server running on port ${socketPort}`);
+module.exports = io;
