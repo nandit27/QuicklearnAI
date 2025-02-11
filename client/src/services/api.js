@@ -75,20 +75,32 @@ export const quizService = {
       const response = await api.post('/quiz', {
         link,
         qno,
-        difficulty,
+        difficulty
       });
       
       if (!response.data || !response.data.questions || !response.data.summary) {
         throw new Error('Invalid response format from server');
       }
 
-      // Return both summary and quiz data in the expected format
-      return {
-        summary: response.data.summary,
-        quiz: response.data.questions[difficulty]
-      };
+      // Handle all possible ways to get the topic
+      const rawResponse = response.data;
+      let topicName = rawResponse.topic_name || rawResponse.topic;
       
+      // If no direct topic field, try to extract from summary
+      if (!topicName && rawResponse.summary) {
+        // Get the first topic key from summary (e.g., "Topic Life Guidance")
+        const firstTopicKey = Object.keys(rawResponse.summary)[0];
+        // Extract the topic name after "Topic " prefix
+        topicName = firstTopicKey?.replace('Topic ', '') || 'Unknown Topic';
+      }
+
+      return {
+        summary: rawResponse.summary,
+        quiz: rawResponse.questions[difficulty],
+        title: topicName
+      };
     } catch (error) {
+      console.error('Error in generateQuiz:', error);
       if (error.response) {
         throw new Error(error.response.data.error || 'Failed to generate quiz');
       } else if (error.request) {
@@ -182,4 +194,136 @@ export const recommendationService = {
       }
     }
   },
+};
+
+export const documentService = {
+  uploadPdf: async (file) => {
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Get user token
+      const userInfo = localStorage.getItem('user-info');
+      let token = null;
+      if (userInfo) {
+        const { token: userToken } = JSON.parse(userInfo);
+        token = userToken;
+      }
+
+      // Make request using api2 instance (which points to localhost:3000)
+      const response = await api2.post('/gen/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        withCredentials: true
+      });
+
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to upload file');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  },
+  
+  queryDocument: async (query) => {
+    try {
+      const response = await api2.post('/gen/query', {
+        query: query
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to process query');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  }
+};
+
+export const userService = {
+  uploadImage: async (imageFile) => {
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('image', imageFile);
+
+      // Get user token
+      const userInfo = localStorage.getItem('user-info');
+      if (!userInfo) {
+        throw new Error('User not authenticated');
+      }
+
+      const { token } = JSON.parse(userInfo);
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      // Make request using api2 instance (which points to localhost:3000)
+      const response = await api2.post('/user/user/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        },
+        withCredentials: true
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Upload image error:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to upload image');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  },
+
+  matchDoubt: async (doubtId) => {
+    try {
+      const userInfo = localStorage.getItem('user-info');
+      if (!userInfo) {
+        throw new Error('User not authenticated');
+      }
+
+      const { token } = JSON.parse(userInfo);
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      const response = await api2.post(`/user/doubt/match/${doubtId}`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        withCredentials: true
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Match doubt error:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to match doubt');
+      } else if (error.request) {
+        throw new Error('No response from server');
+      } else {
+        throw new Error('Error setting up request');
+      }
+    }
+  }
 };

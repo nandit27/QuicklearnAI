@@ -58,18 +58,43 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
 
   return (
     <Dialog open={isOpen} onClose={onClose}>
+      {error && (
+        <div className="mb-4 p-2 bg-red-500/10 border border-red-500/50 rounded text-red-500 text-sm">
+          {error}
+        </div>
+      )}
+      
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 text-transparent bg-clip-text">
-          Create Your Account
+        <h2 className="text-2xl font-bold text-[#00FF9D]">
+          Join QuickLearnAI
         </h2>
+        <p className="text-gray-400 mt-2">Start your learning journey today</p>
       </div>
 
       <Tabs value={activeTab} onChange={setActiveTab}>
-        <TabsList>
-          <TabTrigger value="student" selected={activeTab === 'student'} onClick={setActiveTab}>
+        <TabsList className="bg-red/50 p-1 rounded-lg mb-6">
+          <TabTrigger 
+            value="student" 
+            selected={activeTab === 'student'} 
+            onClick={setActiveTab}
+            className={`flex-1 px-4 py-2 rounded-md transition-all ${
+              activeTab === 'student' 
+                ? 'bg-[#00FF9D]/20 border border-[#00FF9D]/50 text-[#00FF9D]' 
+                : 'text-gray-400 hover:text-[#00FF9D]'
+            }`}
+          >
             Student
           </TabTrigger>
-          <TabTrigger value="teacher" selected={activeTab === 'teacher'} onClick={setActiveTab}>
+          <TabTrigger 
+            value="teacher" 
+            selected={activeTab === 'teacher'} 
+            onClick={setActiveTab}
+            className={`flex-1 px-4 py-2 rounded-md transition-all ${
+              activeTab === 'teacher' 
+                ? 'bg-[#00FF9D]/20 border border-[#00FF9D]/50 text-[#00FF9D]' 
+                : 'text-gray-400 hover:text-[#00FF9D]'
+            }`}
+          >
             Teacher
           </TabTrigger>
         </TabsList>
@@ -85,7 +110,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 type="text"
                 name="username"
                 placeholder="John Doe"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -100,7 +125,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 name="phone"
                 placeholder="1234567890"
                 pattern="[0-9]{10}"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -114,7 +139,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 type="email"
                 name="email"
                 placeholder="student@example.com"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -128,14 +153,14 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 type="password"
                 name="password"
                 placeholder="Enter your password"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-lg transition-colors"
+              className="w-full py-2.5 px-4 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] font-medium"
             >
               Sign Up as Student
             </button>
@@ -153,7 +178,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 type="text"
                 name="username"
                 placeholder="Dr. Jane Smith"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -167,7 +192,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 type="email"
                 name="email"
                 placeholder="teacher@example.com"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -182,7 +207,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 name="phone"
                 placeholder="1234567890"
                 pattern="[0-9]{10}"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -194,7 +219,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <select
                 name="highestQualification"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               >
                 <option value="">Select Qualification</option>
@@ -221,7 +246,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 />
                 <label
                   htmlFor="certificate"
-                  className="flex items-center gap-2 w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg cursor-pointer hover:border-purple-500 transition-colors"
+                  className="flex items-center gap-2 w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg cursor-pointer hover:border-[#00FF9D] hover:bg-black transition-all"
                 >
                   <Upload className="w-5 h-5 text-gray-400" />
                   <span className="text-gray-400">
@@ -242,7 +267,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 min="0"
                 max="50"
                 placeholder="5"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               />
             </div>
@@ -254,7 +279,7 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               </label>
               <select
                 name="subject"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
                 required
               >
                 <option value="">Select Subject</option>
@@ -267,33 +292,22 @@ export const SignUpModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                 <option value="other">Other</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                placeholder="Enter your password"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                required
-              />
-            </div>
 
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-lg transition-colors"
+              className="w-full py-2.5 px-4 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] font-medium"
             >
               Sign Up as Teacher
             </button>
           </form>
         </TabContent>
       </Tabs>
-      <div className="text-center text-sm text-gray-400 mt-4">
+      
+      <div className="text-center text-sm text-gray-400 mt-6">
         Already have an account?{' '}
         <button
           onClick={onSwitchToLogin}
-          className="text-purple-400 hover:text-purple-300"
+          className="text-[#00FF9D] hover:text-[#00FF9D]/80 font-medium transition-colors"
         >
           Log in
         </button>

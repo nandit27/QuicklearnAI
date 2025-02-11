@@ -6,6 +6,7 @@ import { quizService } from '../services/api';
 import FlashCard from '../components/FlashCard';
 import { useToast } from "@/components/ui/use-toast";
 import { statisticsService } from '../services/api';
+import { Link } from 'react-router-dom'
 
 const QuizGenerator = () => {
   const { toast } = useToast();
@@ -19,10 +20,14 @@ const QuizGenerator = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [quizStats, setQuizStats] = useState(null);
   const [showStats, setShowStats] = useState(false);
+  const [quizTitle, setQuizTitle] = useState('');
   
   // Form state
   const [youtubeLink, setYoutubeLink] = useState('');
   const [questionCount, setQuestionCount] = useState(5);
+
+  // Add navigate hook
+  const navigate = useNavigate();
 
   const handleDifficultySelect = (difficulty) => {
     setSelectedDifficulty(difficulty.toLowerCase());
@@ -62,7 +67,7 @@ const QuizGenerator = () => {
         selectedDifficulty
       );
       
-      console.log('Quiz Response:', response);
+      console.log('Quiz Service Response:', response);
       
       if (!response || !response.quiz || !response.summary) {
         throw new Error('Invalid quiz data format');
@@ -74,6 +79,9 @@ const QuizGenerator = () => {
       });
       setSummaryData(response.summary);
       setShowSummary(true);
+      
+      console.log('Setting Quiz Title:', response.title);
+      setQuizTitle(response.title || 'Unknown Topic');
       
     } catch (error) {
       setError(error.message || 'Failed to generate quiz. Please try again.');
@@ -108,7 +116,7 @@ const QuizGenerator = () => {
         pasturl: youtubeLink,
         score: score,
         totalscore: quizData.quiz.length,
-        topic: summaryData.title || 'General Knowledge',
+        topic: quizTitle || 'Unknown Topic',
       };
       console.log('Sending statistics data:', statisticsData);
 
@@ -157,6 +165,17 @@ const QuizGenerator = () => {
     }
   };
 
+  const handleMindMapNavigation = () => {
+    if (!youtubeLink) {
+        alert("Please enter a YouTube URL first!");
+        return;
+    }
+    
+    // Navigate with the encoded URL
+    const encodedUrl = encodeURIComponent(youtubeLink);
+    window.location.href = `/mindmap?url=${encodedUrl}`; // Using direct navigation
+  };
+
   // Show quiz if active
   if (showQuiz && quizData) {
     return <QuizDisplay 
@@ -202,6 +221,14 @@ const QuizGenerator = () => {
             >
               Start Quiz
             </button>
+            <Link to="/mindmap">
+              <button 
+                onClick={handleMindMapNavigation}
+                className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
+              >
+                Mind Map
+              </button>
+            </Link>
             <button
               onClick={handleGenerateSummary}
               disabled={loading}
@@ -281,7 +308,7 @@ const QuizGenerator = () => {
       <div className="flex flex-col items-center px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-6xl font-bold mb-4 text-white mt-12">
+          <h1 className="text-6xl font-bold mb-4 text-white">
             Quick<span className="text-[#00FF9D]">Learn</span>AI
           </h1>
           <p className="text-xl text-gray-400">
