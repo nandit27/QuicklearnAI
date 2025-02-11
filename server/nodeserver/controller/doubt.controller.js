@@ -5,19 +5,15 @@ async function matchdoubt(req, res) {
 
     try {
         const { doubtId } = req.params;
-        console.log(doubtId);
-        
         const doubt = await Doubt.findById(doubtId);
-        console.log(doubt);
-        
-        if (!doubt) return res.status(404).json({ error: "Doubt not found" });
+if (!doubt) return res.status(404).json({ error: "Doubt not found" });
 
         const subject = doubt.topics[0];
         const subcategory = doubt.topics[1];
 
         const teacherKeys = await redis.keys('teacher:*');
         let matchedTeachers = [];
-
+        
         for (const key of teacherKeys) {
             const teacher = await redis.hgetall(key);
             if (teacher.field === subject && teacher.subcategory === subcategory) {
@@ -33,7 +29,23 @@ async function matchdoubt(req, res) {
                 });
             }
         }
-
+        //find the all teacher by subject and subcategory
+        if (matchedTeachers.length === 0) {
+            for (const key of teacherKeys) {
+                const teacher = await redis.hgetall(key);
+                if (teacher.field === subject) {
+                    matchedTeachers.push({
+                        _id: key.split(':')[1],
+                        email: teacher.email,
+                        username: teacher.username,
+                        rating: parseFloat(teacher.rating),
+                        doubtsSolved: parseInt(teacher.doubtsSolved),
+                        field: teacher.field,
+                        subcategory: teacher.subcategory,
+                       });
+                }
+            }
+        }
         // If no exact match found, find teachers by subject only
         if (matchedTeachers.length === 0) {
             for (const key of teacherKeys) {
@@ -75,7 +87,7 @@ async function matchdoubt(req, res) {
         // Update Redis doubt status
         await redis.hset(`doubt:${doubtId}`, "status", "assigned", "teacher", assignedTeacher);
 
-        
+
         io.to(assignedTeacher).emit("new_doubt", {
             doubtId,
             student: doubt.student,
@@ -85,7 +97,8 @@ async function matchdoubt(req, res) {
         res.status(200).json({
             message: "Teacher assigned successfully",
             doubtId,
-            assignedTeacher
+            assignedTeacher,
+            onlineteacher: matchedTeachers
         });
     } catch (error) {
         console.error("Error matching teacher:", error);
