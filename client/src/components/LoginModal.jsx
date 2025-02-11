@@ -130,24 +130,42 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
       )}
       
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 text-transparent bg-clip-text">
+        <h2 className="text-2xl font-bold text-[#00FF9D]">
           Welcome to QuickLearnAI
         </h2>
+        <p className="text-gray-400 mt-2">Sign in to continue</p>
       </div>
 
       <Tabs value={activeTab} onChange={setActiveTab}>
-        <TabsList>
-          <TabTrigger value="student" selected={activeTab === 'student'} onClick={() => setActiveTab('student')}>
+        <TabsList className="grid grid-cols-2 gap-2 p-1 mb-6">
+          <TabTrigger 
+            value="student" 
+            selected={activeTab === 'student'} 
+            onClick={() => setActiveTab('student')}
+            className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+              activeTab === 'student' 
+                ? 'bg-[#00FF9D] text-black font-medium'
+                : 'bg-black/50 text-gray-400 hover:text-white'
+            }`}
+          >
             Student
           </TabTrigger>
-          <TabTrigger value="teacher" selected={activeTab === 'teacher'} onClick={() => setActiveTab('teacher')}>
+          <TabTrigger 
+            value="teacher" 
+            selected={activeTab === 'teacher'} 
+            onClick={() => setActiveTab('teacher')}
+            className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+              activeTab === 'teacher' 
+                ? 'bg-[#00FF9D] text-black font-medium'
+                : 'bg-black/50 text-gray-400 hover:text-white'
+            }`}
+          >
             Teacher
           </TabTrigger>
         </TabsList>
 
         <TabContent value="student" selected={activeTab === 'student'}>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            {/* Email and Password fields */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
                 Email
@@ -156,7 +174,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
                 type="email"
                 name="email"
                 placeholder="student@example.com"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
               />
             </div>
             <div>
@@ -166,17 +184,17 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               <input
                 type="password"
                 name="password"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
               />
             </div>
             <div className="flex justify-between items-center">
-              <a href="#" className="text-sm text-purple-400 hover:text-purple-300">
+              <a href="#" className="text-sm text-[#00FF9D] hover:text-[#00FF9D]/80">
                 Forgot password?
               </a>
             </div>
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-lg transition-colors"
+              className="w-full py-2.5 px-4 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] font-medium"
             >
               Login as Student
             </button>
@@ -186,7 +204,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               <button
                 onClick={googleLogin}
                 type="button"
-                className="w-full py-2 px-4 bg-white text-gray-800 rounded-lg flex items-center justify-center space-x-2 hover:bg-gray-100 transition-colors"
+                className="w-full py-2 px-4 bg-black/50 border border-gray-800 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-black/70 hover:border-[#00FF9D]/30 transition-all"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
                 <span>Continue with Google</span>
@@ -200,7 +218,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
                   onClose();
                   onSignUpClick();
                 }}
-                className="text-purple-400 hover:text-purple-300"
+                className="text-[#00FF9D] hover:text-[#00FF9D]/80 font-medium transition-colors"
               >
                 Sign up
               </button>
@@ -217,7 +235,8 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               <input
                 type="email"
                 name="email"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                placeholder="teacher@example.com"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
               />
             </div>
             <div>
@@ -227,17 +246,17 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               <input
                 type="password"
                 name="password"
-                className="w-full px-4 py-2 bg-[#1a2234] border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 bg-black/50 border border-gray-800 rounded-lg focus:outline-none focus:border-[#00FF9D] focus:ring-1 focus:ring-[#00FF9D] transition-all placeholder-gray-500"
               />
             </div>
             <div className="flex justify-between items-center">
-              <a href="#" className="text-sm text-purple-400 hover:text-purple-300">
+              <a href="#" className="text-sm text-[#00FF9D] hover:text-[#00FF9D]/80">
                 Forgot password?
               </a>
             </div>
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-lg transition-colors"
+              className="w-full py-2.5 px-4 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] font-medium"
             >
               Login as Teacher
             </button>
@@ -247,7 +266,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
               <button
                 onClick={googleLogin}
                 type="button"
-                className="w-full py-2 px-4 bg-white text-gray-800 rounded-lg flex items-center justify-center space-x-2 hover:bg-gray-100 transition-colors"
+                className="w-full py-2 px-4 bg-black/50 border border-gray-800 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-black/70 hover:border-[#00FF9D]/30 transition-all"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
                 <span>Continue with Google</span>
@@ -261,7 +280,7 @@ const LoginModalContent = ({ isOpen, onClose, onSignUpClick }) => {
                   onClose();
                   onSignUpClick();
                 }}
-                className="text-purple-400 hover:text-purple-300"
+                className="text-[#00FF9D] hover:text-[#00FF9D]/80 font-medium transition-colors"
               >
                 Sign up
               </button>

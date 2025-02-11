@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import  socket  from '../utils/socket';
+import ChatRoom from './ChatRoom';
 
 const TeacherDashboard = () => {
   // Hardcoded teacher data
@@ -9,17 +11,36 @@ const TeacherDashboard = () => {
   const rating = "4/5";
   
   // Hardcoded doubts data
-  const newDoubts = [
+  const [newDoubts, setNewDoubts] = useState([
     { id: 1, question: "What is Stemming in NLP ?" },
     { id: 2, question: "How does BackPropagation work?" },
     { id: 3, question: "Explain CNN architecture" }
-  ];
+  ]);
 
   const solvedDoubts = [
     { id: 1, question: "What is Gradient Descent?" },
     { id: 2, question: "What is Deep Learning" },
     { id: 3, question: "Explain LSTM networks" }
   ];
+
+  const [activeDoubt, setActiveDoubt] = useState(null);
+
+  useEffect(() => {
+    const userInfo = JSON.parse(localStorage.getItem('user-info'));
+    
+    socket.emit('join_chat', {
+      userId: userInfo._id,
+      role: 'teacher'
+    });
+
+    socket.on('new_doubt', (doubt) => {
+      setNewDoubts(prev => [...prev, doubt]);
+    });
+
+    return () => {
+      socket.off('new_doubt');
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white p-8 mt-24">

@@ -16,8 +16,11 @@ const TabTrigger = ({ value, selected, onClick, children }) => {
   return (
     <button
       onClick={() => onClick(value)}
-      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors
-        ${selected ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}
+      className={`flex-1 px-4 py-2 rounded-md transition-all ${
+        selected 
+          ? 'bg-[#00FF9D]/20 border border-[#00FF9D]/50 text-[#00FF9D]' 
+          : 'text-gray-400 hover:text-[#00FF9D]'
+      }`}
     >
       {children}
     </button>

@@ -22,7 +22,7 @@ from bson.objectid import ObjectId
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-# from langchain_community.indexes import VectorstoreIndexCreator  # Commented out due to ImportError
+#from langchain_community.indexes import VectorstoreIndexCreator  # Commented out due to ImportError
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
@@ -33,7 +33,7 @@ from langchain.schema import Document
 import chromadb
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
-from langchain.document_loaders import PyPDFLoader
+#from langchain.document_loaders import PyPDFLoader
 from pptx import Presentation
 
 app = Flask(__name__)
@@ -173,8 +173,7 @@ def quiz():
         if transcript:
             summary_and_quiz = generate_summary_and_quiz(transcript, num_questions, language, difficulty)
             
-            if summary_and_quiz:
-                print(summary_and_quiz) 
+            if summary_and_quiz: 
                 return jsonify(summary_and_quiz)
 
             else:
@@ -288,11 +287,8 @@ def store_in_faiss(filename, text):
     embeddings = embedding_model.encode(chunks)
     faiss_index.add(embeddings)  
     metadata_store.update({i: filename for i in range(len(metadata_store), len(metadata_store) + len(chunks))})
-
-
-
 genai.configure(api_key=os.getenv("GENAI_API_KEY"))
-model = SentenceTransformer("multi-qa-mpnet-base-cos-v1")
+model = SentenceTransformer("all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
@@ -331,14 +327,15 @@ def upload_file():
         else:
             return jsonify({"error": "Unsupported file format. Only PDF and PPTX are allowed."}), 400
         
+        existing_ids = collection.get()["ids"]
+        if existing_ids:
+            collection.delete(ids=existing_ids)
         embedding = model.encode(content).tolist()
         collection.add(documents=[content], embeddings=[embedding], ids=[file.filename])
         
         return jsonify({"message": "File uploaded and processed successfully."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-    
 @app.route("/query", methods=["POST"])
 def query_file():
     data = request.get_json()
@@ -349,6 +346,68 @@ def query_file():
     response = genai.GenerativeModel("gemini-1.5-flash").generate_content(retrieved_texts + "\nQuestion: " + query)
     return jsonify({"answer": response.text})
 
+# MindMap
+
+def fetch_youtube_transcript(video_url):
+    try:
+        video_id = video_url.split("v=")[-1]
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'hi'])
+        return " ".join([entry["text"] for entry in transcript])  # Clean transcript
+    except Exception as e:
+        return {"error": f"Error fetching transcript: {str(e)}"}
+
+def generate_mind_map(content):
+    prompt = f"""
+    Extract key concepts from the following text and structure them into a JSON-based mind map.
+    Organize it into: "Topic" -> "Subtopics" -> "Details".
+
+    Text: {content}
+
+    Output **ONLY** valid JSON in this format (no extra text, no explanations):
+    {{
+        "topic": "Main Topic",
+        "subtopics": [
+            {{"name": "Subtopic 1", "details": ["Detail 1", "Detail 2"]}},
+            {{"name": "Subtopic 2", "details": ["Detail 3", "Detail 4"]}}
+        ]
+    }}
+    """
+
+    llm = ChatGroq(
+        model="llama-3.3-70b-specdec",
+        temperature=0,
+        groq_api_key=os.getenv("GROQ_API_KEY"),
+    )      
+
+    response = llm.invoke(prompt)
+
+    # Ensure response is a string
+    raw_json = response.content.strip() if hasattr(response, "content") else str(response)
+
+    # Remove unwanted formatting (like triple backticks and newlines)
+    cleaned_json_str = raw_json.replace("```json", "").replace("```", "").replace("\n", "").strip()
+
+    # Convert to valid JSON
+    try:
+        return json.loads(cleaned_json_str)
+    except json.JSONDecodeError:
+        return {"error": f"Invalid JSON response: {cleaned_json_str}"}
+
+@app.route("/generate_mind_map", methods=['GET'])
+def generate_mind_map_endpoint():
+    print("✅ Endpoint called!")  # Debugging
+    video_url = request.args.get('video_url')
+
+    if not video_url:
+        return jsonify({"error": "No video URL provided"}), 400
+
+    transcript = fetch_youtube_transcript(video_url)
+    if isinstance(transcript, dict) and "error" in transcript:
+        return jsonify(transcript), 400
+
+    mind_map = generate_mind_map(transcript)
+   
+    return jsonify(mind_map)
 
 
 @app.route('/', methods=['GET'])

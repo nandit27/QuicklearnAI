@@ -1,9 +1,14 @@
 const { Server } = require("socket.io");
 const Chat = require("./models/chat.model");
+const cors = require('cors');
 
 const socketPort = process.env.SOCKET_PORT || 5002;
 const io = new Server(socketPort, {
-    cors: { origin: "*" }
+    cors: {
+        origin: ['http://localhost:3000', 'http://localhost:5173'],
+        credentials: true,
+        optionsSuccessStatus: 200
+    }
 });
 
 const activeChats = {}; // Store active chat users
