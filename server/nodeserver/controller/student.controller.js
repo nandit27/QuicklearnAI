@@ -125,7 +125,7 @@ async function getCategoryFromGemini(text) {
 }
 
 function parseCategoryText(text) {
-    
+
     const categories = text.split(", ").map(entry => {
         const [field, subcategory] = entry.split(" : ");
         return { Field: field.trim(), Subcategory: subcategory.trim() };
