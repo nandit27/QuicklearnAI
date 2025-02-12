@@ -16,6 +16,7 @@ import ChatBot from './pages/ChatBot'
 import MindMap from './pages/MindMap'
 import DoubtCreation from './components/DoubtCreation'
 import ChatRoom from './components/ChatRoom'
+import MatchedTeachers from './components/MatchedTeachers'
 
 function Home() {
   const contentRef = useRef()
@@ -93,7 +94,8 @@ function App() {
           <Route path="/recommendations" element={<RecommendationPage />} />
           <Route path="/mindmap" element={<MindMap />} />
           <Route path="/doubt/create" element={<DoubtCreation />} />
-          <Route path="/doubt/:doubtId/chat" element={<ChatRoom />} />
+          <Route path="/doubt/:doubtId/chat" element={<ChatRoom/>} />
+          <Route path="/doubt/:doubtId/matched" element={<MatchedTeachers />} />
         </Routes>
         
         <LoginModal 

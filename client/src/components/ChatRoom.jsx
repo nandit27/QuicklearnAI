@@ -1,35 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
-import axios from 'axios';
+import { chatService } from '../services/api';
 
 const socket = io('http://localhost:5002');
 
 const ChatRoom = ({ doubtId }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [error, setError] = useState(null);
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
 
   useEffect(() => {
-    // Join chat room
-    socket.emit('join_chat', {
-      doubtId,
-      userId: userInfo._id,
-      role: userInfo.role
-    });
+    const initializeChat = async () => {
+      if (!doubtId) {
+        setError('Doubt ID is required');
+        return;
+      }
 
-    // Load chat history
-    const fetchChatHistory = async () => {
+      if (!userInfo || !userInfo._id) {
+        setError('User information is missing');
+        return;
+      }
+
       try {
-        const response = await axios.get(`http://localhost:3001/chat/history/${doubtId}`, {
-          withCredentials: true
+        // Join chat room via API
+        const joinResponse = await chatService.joinChat(doubtId, userInfo._id, userInfo.role);
+        console.log('Join response:', joinResponse);
+        
+        // Join chat room via socket
+        socket.emit('join_chat', {
+          doubtId,
+          userId: userInfo._id,
+          role: userInfo.role
         });
-        setMessages(response.data);
+
+        // Load chat history
+        const chatHistory = await chatService.getChatHistory(doubtId);
+        setMessages(chatHistory);
       } catch (error) {
-        console.error('Error fetching chat history:', error);
+        console.error('Error initializing chat:', error);
+        setError(error.message);
       }
     };
 
-    fetchChatHistory();
+    initializeChat();
 
     // Listen for new messages
     socket.on('chat_message', (message) => {
@@ -39,19 +53,27 @@ const ChatRoom = ({ doubtId }) => {
     return () => {
       socket.off('chat_message');
     };
-  }, [doubtId]);
+  }, [doubtId, userInfo]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    socket.emit('chat_message', {
-      doubtId,
-      sender: userInfo._id,
-      message: newMessage
-    });
+    try {
+      // Send message via API
+      await chatService.sendMessage(doubtId, userInfo._id, newMessage);
 
-    setNewMessage('');
+      // Emit socket event
+      socket.emit('chat_message', {
+        doubtId,
+        sender: userInfo._id,
+        message: newMessage
+      });
+
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
 
   return (

@@ -79,8 +79,11 @@ async function getCategoryFromGroq(text) {
         });
 
         const prompt = `Act as a query analyzer. Categorize the following question text into one of these primary categories: Mathematics, Physics, Chemistry, Biology, Computer Science, or Other.  
-If the question belongs to a subdomain (e.g., Calculus, Linear Algebra with Mathematics; Computer Science with Operating Systems, Networks , classify it under the broader category along with the subdomain. 
-Only respond with the category name and also tell me which teacher subject this question belongs to. format should be "Computer Science : Operating System : Networks" or "Mathematics : Calculus ".
+If the question belongs to a subdomain (e.g., Calculus, Linear Algebra with Mathematics; Computer Science with Operating Systems, Networks), classify it under the broader category along with the subdomain.  
+
+Only respond in the following format:  
+Chemistry : Inorganic (Teaching Subject)  
+
 Here is the text: ${text}`;
 
         const aiMsg = await llm.invoke([

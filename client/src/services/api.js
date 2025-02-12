@@ -314,7 +314,11 @@ export const userService = {
         withCredentials: true
       });
 
-      return response.data;
+      return {
+        doubtId: response.data.doubtId,
+        assignedTeacher: response.data.assignedTeacher,
+        onlineteacher: response.data.onlineteacher
+      };
     } catch (error) {
       console.error('Match doubt error:', error);
       if (error.response) {
@@ -326,4 +330,47 @@ export const userService = {
       }
     }
   }
+};
+
+export const chatService = {
+    joinChat: async (doubtId, userId, role) => {
+        try {
+            const response = await api2.post('/chat/join', {
+                doubtId,
+                userId,
+                role
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Join chat error:', error);
+            throw error;
+        }
+    },
+
+    sendMessage: async (doubtId, sender, message) => {
+        try {
+            const response = await api2.post('/chat/send', {
+                doubtId,
+                sender,
+                message
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Send message error:', error);
+            throw error;
+        }
+    },
+
+    getChatHistory: async (doubtId) => {
+        try {
+            if (!doubtId) {
+                throw new Error('Doubt ID is required');
+            }
+            const response = await api2.get(`/chat/history/${doubtId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Get chat history error:', error);
+            throw error;
+        }
+    }
 };

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Upload } from 'lucide-react';
 import { userService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const DoubtCreation = () => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleFileUpload = async (e) => {
     e.preventDefault();
@@ -15,10 +17,19 @@ const DoubtCreation = () => {
     try {
       // Use userService to upload file
       const response = await userService.uploadImage(file);
+      console.log("Upload response:", response);
 
       // Match with teacher if doubtId is returned
       if (response.doubtId) {
-        await userService.matchDoubt(response.doubtId);
+        const matchResponse = await userService.matchDoubt(response.doubtId);
+        console.log("Match response:", matchResponse);
+
+        // Navigate with matched data
+        navigate(`/doubt/${response.doubtId}/matched`, {
+          state: {
+            matchedData: matchResponse
+          }
+        });
       }
     } catch (error) {
       console.error('Error creating doubt:', error.message);
@@ -28,7 +39,7 @@ const DoubtCreation = () => {
   };
 
   return (
-    <div className="p-6 bg-black/40 rounded-lg border border-white/10">
+    <div className="p-6 bg-black/40 rounded-lg border border-white/10 mt-24">
       <form onSubmit={handleFileUpload}>
         <input
           type="file"
