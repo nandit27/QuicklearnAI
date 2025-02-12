@@ -9,7 +9,7 @@ const storestatisticRoutes = require('./routes/user.routes');
 const doubtroutes = require('./routes/doubt.routes');
 const redis = require('./redis.connection');
 const io = require('./socket.server');
-
+const chatroutes = require('./routes/chat.routes');
 const morgan = require('morgan');
 
 app.use(express.json());
@@ -29,6 +29,7 @@ app.use('/auth', authRoutes);
 app.use('/', staticRoutes);
 app.use('/user', storestatisticRoutes);
 app.use('/doubt', doubtroutes);
+app.use('/chat', chatroutes);
 app.listen(port, () => {
     console.log(`server is running on port http://localhost:${port}`);
 });

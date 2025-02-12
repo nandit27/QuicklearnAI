@@ -34,7 +34,7 @@ io.on("connection", (socket) => {
                 topic
             });
             console.log(`New doubt ${doubtId} from student ${student} assigned to teacher ${assignedTeacher}`);
-        } else {
+        } else { 
             console.log(`No available teacher for doubt ${doubtId} from student ${student}`);
         }
     });

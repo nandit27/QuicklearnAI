@@ -19,7 +19,7 @@ const teacherSchema = new mongoose.Schema({
         required: true
     },
     phone: {
-        type: String, // Changed from Number to String to handle country codes
+        type: String, 
         required: true
     },
     highestQualification: {
@@ -31,7 +31,7 @@ const teacherSchema = new mongoose.Schema({
         required: true
     },
     specialization: {
-        type: String, // Specific area of expertise
+        type: String,
         default: ""
     },
     bio: {
@@ -40,8 +40,8 @@ const teacherSchema = new mongoose.Schema({
     },
     subject: [
         {
-            field: String, // e.g., "Mathematics"
-            subcategory: [String] // e.g., ["Algebra", "Calculus"]
+            field: String, 
+            subcategory: [String] 
         }
     ],
     certification: {
@@ -54,17 +54,17 @@ const teacherSchema = new mongoose.Schema({
     },
     doubtsSolved: {
         type: Number,
-        default: 0 // Helps ranking
+        default: 0 
     },
     isOnline: {
         type: Boolean,
-        default: false // Real-time tracking for available teachers
+        default: false 
     },
     availability: [
         {
-            day: String, // e.g., "Monday"
-            startTime: String, // e.g., "09:00 AM"
-            endTime: String // e.g., "06:00 PM"
+            day: String, 
+            startTime: String, 
+            endTime: String
         }
     ]
 }, { timestamps: true });

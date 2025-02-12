@@ -196,10 +196,55 @@ async function uploadFile(req, res) {
     }
 }
 
+async function giveratingtoteacher(req, res) {
+    try {
+        const { teacherId, rating } = req.body;
+        if (!teacherId || rating === undefined || rating === null) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const numericRating = Number(rating);
+        if (isNaN(numericRating) || numericRating < 0 || numericRating > 5) {
+            return res.status(400).json({ error: "Rating must be a number between 0 and 5" });
+        }
+
+        const teacher = await Teacher.findById(teacherId);
+        if (!teacher) {
+            return res.status(404).json({ error: "Teacher not found" });
+        }
+
+        const currentRating = Number(teacher.rating) || 0;
+        const currentDoubtsSolved = Number(teacher.doubtsSolved) || 0;
+        
+        const newRating = Math.min(5, Math.max(0, 
+            (currentRating * currentDoubtsSolved + numericRating) / (currentDoubtsSolved + 1)
+        ));
+        
+        if (isNaN(newRating)) {
+            throw new Error('Rating calculation resulted in NaN');
+        }
+
+        teacher.rating = newRating;
+        teacher.doubtsSolved = currentDoubtsSolved + 1;
+        await redis.hset(`teacher:${teacherId}`, 'rating', newRating);
+        await redis.hincrby(`teacher:${teacherId}`, 'doubtsSolved', 1);
+        await teacher.save();
+        
+        res.status(200).json({ 
+            message: "Thank you for your rating!"
+        });
+    }
+    catch(error) {
+        console.error("Error giving rating to teacher:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
 
 module.exports = {
     storestatics,
     getstatistics,
     uploadFile,
-    upload
+    upload,
+    giveratingtoteacher
 };
