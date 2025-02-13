@@ -48,7 +48,7 @@ const doubtSchema = new mongoose.Schema({
     {
       sender: {
         type: mongoose.Schema.Types.ObjectId,
-        refPath: "senderModel",r
+        refPath: "senderModel",
       },
       senderModel: {
         type: String,

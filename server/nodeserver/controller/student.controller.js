@@ -25,6 +25,22 @@ async function storestatics(req, res) {
             topic,
             student: userId
         });
+        //store in redis in formate {studentId:{topic:[topics}}}
+        const studentData = await redis.hget(`student:${userId}`, 'statistics');
+        if (studentData) {
+            const studentStatistics = JSON.parse(studentData);
+            if (studentStatistics[topic]) {
+            studentStatistics[topic].push({ pasturl, score, totalscore });
+            } else {
+            studentStatistics[topic] = [{ pasturl, score, totalscore }];
+            }
+            await redis.hset(`student:${userId}`, 'statistics', JSON.stringify(studentStatistics));
+        } else {
+            const studentStatistics = { [topic]: [{ pasturl, score, totalscore }] };
+            await redis.hset(`student:${userId}`, 'statistics', JSON.stringify(studentStatistics));
+        }
+        await redis.expire(`student:${userId}`, 86400); // Set expiration to 1 day (86400 seconds)
+
         await newStatistic.save();
         res.status(201).json({ message: 'Statistics saved successfully' });
     } catch (error) {
@@ -215,11 +231,11 @@ async function giveratingtoteacher(req, res) {
 
         const currentRating = Number(teacher.rating) || 0;
         const currentDoubtsSolved = Number(teacher.doubtsSolved) || 0;
-        
-        const newRating = Math.min(5, Math.max(0, 
+
+        const newRating = Math.min(5, Math.max(0,
             (currentRating * currentDoubtsSolved + numericRating) / (currentDoubtsSolved + 1)
         ));
-        
+
         if (isNaN(newRating)) {
             throw new Error('Rating calculation resulted in NaN');
         }
@@ -229,12 +245,12 @@ async function giveratingtoteacher(req, res) {
         await redis.hset(`teacher:${teacherId}`, 'rating', newRating);
         await redis.hincrby(`teacher:${teacherId}`, 'doubtsSolved', 1);
         await teacher.save();
-        
-        res.status(200).json({ 
+
+        res.status(200).json({
             message: "Thank you for your rating!"
         });
     }
-    catch(error) {
+    catch (error) {
         console.error("Error giving rating to teacher:", error);
         res.status(500).json({ error: "Internal server error" });
     }

@@ -35,9 +35,9 @@ from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 #from langchain.document_loaders import PyPDFLoader
 from pptx import Presentation
+import redis
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
-app = Flask(__name__)
- 
 app = Flask(__name__)
 SECRET_KEY = "quick" 
 mongo_client = MongoClient("mongodb://localhost:27017/quicklearnai") 
@@ -236,11 +236,13 @@ def llama_generate_recommendations(prompt):
 def get_recommendations():
     user_id = request.user_id  # Extract user ID from the token
     try:
-        user_documents = topics_collection.find({"student": ObjectId(user_id)})
-        user_list = list(user_documents)
-
-        topics = [doc.get("topic") for doc in user_list if "topic" in doc]
-
+        statistics = redis_client.hget(f"student:{user_id}", "statistics")
+        
+        if not statistics:
+            return jsonify({"message": "No statistics found for the provided user."}), 404
+        
+        topics = json.loads(statistics)
+        print("Topics:", topics)
         if not topics:
             return jsonify({"message": "No topics found for the provided user."}), 404
 
