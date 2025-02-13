@@ -47,9 +47,7 @@ io.on("connection", (socket) => {
                 doubtId,
                 role
             });
-            console.log(`New doubt ${doubtId} from student ${student} assigned to teacher ${assignedTeacher}`);
-        } else { 
-            console.log(`No available teacher for doubt ${doubtId} from student ${student}`);
+
             socket.emit("joined_chat", { doubtId });
             console.log(`${role} ${userId} joined chat ${doubtId}`);
         } catch (error) {
