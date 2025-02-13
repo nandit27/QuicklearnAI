@@ -6,10 +6,19 @@ async function joinchat(req, res) {
     try {
         const { doubtId, userId, role } = req.body;
 
-        // Emit join event to WebSocket clients in the doubt room
-        io.to(doubtId).emit("join_chat", { doubtId, userId, role });
         if (!doubtId || !userId || !role) {
             return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        // Check if user is already in the chat room
+        const existingChat = await Chat.findOne({ 
+            doubtId,
+            'participants.userId': userId 
+        });
+
+        if (!existingChat) {
+            // Only emit join event if user hasn't joined before
+            io.to(doubtId).emit("join_chat", { doubtId, userId, role });
         }
 
         res.status(200).json({ message: `${role} joined chat`, doubtId });
