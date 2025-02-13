@@ -5,6 +5,50 @@ import { Button } from "@/components/ui/button";
 import socket from '../utils/socket.js';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Star, Award, Trophy, ThumbsUp } from 'lucide-react';
+
+const RatingDisplay = ({ rating }) => {
+  const getEmoji = (rating) => {
+    if (rating >= 4.5) return '🌟';
+    if (rating >= 4.0) return '⭐';
+    if (rating >= 3.5) return '✨';
+    if (rating >= 3.0) return '💫';
+    if (rating > 0) return '⚡';
+    return '🆕'; // Default emoji for 0 rating
+  };
+
+  const getRatingColor = (rating) => {
+    if (rating >= 4.5) return 'text-yellow-400';
+    if (rating >= 4.0) return 'text-yellow-500';
+    if (rating >= 3.5) return 'text-emerald-400';
+    if (rating >= 3.0) return 'text-blue-400';
+    if (rating > 0) return 'text-gray-400';
+    return 'text-blue-300'; // Default color for 0 rating
+  };
+
+  return (
+    <div className="relative group">
+      <div className="flex items-center gap-2">
+        <div className={`text-4xl font-bold ${getRatingColor(rating)}`}>
+          {rating || '0.0'}
+        </div>
+        <div className="text-3xl">{getEmoji(rating)}</div>
+      </div>
+      
+      {/* Rating details on hover */}
+      <div className="absolute top-full left-0 mt-2 w-48 p-3 bg-black/90 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+        <div className="flex items-center gap-2 mb-1">
+          <Trophy className="w-4 h-4 text-yellow-400" />
+          <span className="text-sm text-gray-300">Master Teacher</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ThumbsUp className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm text-gray-300">Top 10%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -13,7 +57,7 @@ const TeacherDashboard = () => {
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
 
   useEffect(() => {
-    // Fetch teacher's assigned doubts on mount
+    // Fetch teacher's doubts on mount
     const fetchDoubts = async () => {
       try {
         const response = await axios.get(`http://localhost:3001/doubt/teacher/${userInfo._id}/doubts`, {
@@ -31,12 +75,6 @@ const TeacherDashboard = () => {
     };
 
     fetchDoubts();
-    
-    // Connect to socket
-    socket.emit('join_chat', {
-      userId: userInfo._id,
-      role: 'teacher'
-    });
 
     // Listen for new doubts
     socket.on('new_doubt', (doubt) => {
@@ -55,6 +93,13 @@ const TeacherDashboard = () => {
   }, []);
 
   const handleJoinChat = (doubtId) => {
+    // Connect to socket with the specific doubt ID
+    socket.emit('join_chat', {
+      doubtId,
+      userId: userInfo._id,
+      role: 'teacher'
+    });
+    
     navigate(`/doubt/${doubtId}/chat`);
   };
 
@@ -71,9 +116,15 @@ const TeacherDashboard = () => {
                   {userInfo.username?.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <h2 className="text-3xl font-semibold">Namaste {userInfo.username}!</h2>
-                <p className="text-xl text-gray-400">Your Rating: {userInfo.rating}/5</p>
+                <RatingDisplay rating={parseFloat(userInfo.rating)} />
+              </div>
+            </div>
+            <div className="flex flex-col items-end space-y-2">
+              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-400/10 rounded-full">
+                <Award className="w-5 h-5 text-emerald-400" />
+                <span className="text-emerald-400">{userInfo.doubtsSolved} Doubts Solved</span>
               </div>
             </div>
           </CardHeader>

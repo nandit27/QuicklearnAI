@@ -313,7 +313,7 @@ export const userService = {
         },
         withCredentials: true
       });
-
+      console.log(response);
       return {
         doubtId: response.data.doubtId,
         assignedTeacher: response.data.assignedTeacher,
@@ -335,24 +335,47 @@ export const userService = {
 export const chatService = {
     joinChat: async (doubtId, userId, role) => {
         try {
-            const response = await api2.post('/chat/join', {
+            if (!doubtId || !userId || !role) {
+                throw new Error('Missing required parameters');
+            }
+
+            const userInfo = localStorage.getItem('user-info');
+            if (!userInfo) {
+                throw new Error('User not authenticated');
+            }
+
+            const { token } = JSON.parse(userInfo);
+            const response = await api2.post('/user/chat/join', {
                 doubtId,
                 userId,
                 role
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
             return response.data;
         } catch (error) {
             console.error('Join chat error:', error);
+            if (error.response) {
+                throw new Error(error.response.data.error || 'Failed to join chat');
+            }
             throw error;
         }
     },
 
     sendMessage: async (doubtId, sender, message) => {
         try {
+            const userInfo = localStorage.getItem('user-info');
+            const { token } = JSON.parse(userInfo);
             const response = await api2.post('/chat/send', {
                 doubtId,
                 sender,
                 message
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
             return response.data;
         } catch (error) {
@@ -366,10 +389,64 @@ export const chatService = {
             if (!doubtId) {
                 throw new Error('Doubt ID is required');
             }
-            const response = await api2.get(`/chat/history/${doubtId}`);
+            const userInfo = localStorage.getItem('user-info');
+            const { token } = JSON.parse(userInfo);
+            const response = await api2.get(`/user/chat/history/${doubtId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             return response.data;
         } catch (error) {
             console.error('Get chat history error:', error);
+            throw error;
+        }
+    }
+};
+
+export const teacherService = {
+    updateRating: async (teacherId, rating) => {
+        try {
+            const userInfo = localStorage.getItem('user-info');
+            if (!userInfo) {
+                throw new Error('User not authenticated');
+            }
+
+            const { token } = JSON.parse(userInfo);
+            const response = await api2.post('/user/user/rating', {
+                teacherId,
+                rating
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Update rating error:', error);
+            if (error.response) {
+                throw new Error(error.response.data.error || 'Failed to update rating');
+            }
+            throw error;
+        }
+    },
+
+    getRating: async (teacherId) => {
+        try {
+            const userInfo = localStorage.getItem('user-info');
+            if (!userInfo) {
+                throw new Error('User not authenticated');
+            }
+
+            const { token } = JSON.parse(userInfo);
+            const response = await api2.get(`/user/teacher/${teacherId}/rating`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Get rating error:', error);
             throw error;
         }
     }
