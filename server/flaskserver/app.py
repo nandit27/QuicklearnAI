@@ -233,6 +233,8 @@ def llama_generate_recommendations(prompt):
  
  
  
+import json
+
 @app.route('/getonly', methods=['GET'])
 @validate_token_middleware()
 def get_recommendations():
@@ -256,10 +258,24 @@ def get_recommendations():
 
         # Format recommendations prompt
         prompt = f"""
-        Act as an intelligent recommendation generator. Based on the topics provided, generate a brief yet informative 
-        overview for each topic and recommend relevant content. Additionally, provide five working YouTube video URLs 
-        for each topic that offer valuable insights, explanations, or tutorials. Ensure that the recommendations are diverse, 
-        covering different perspectives, and that the video links are accessible and relevant.
+        Act as an intelligent recommendation generator. Based on the topics provided, generate a structured JSON response 
+        with an overview, recommendations, and five YouTube video URLs for each topic. Ensure the output is in strict JSON 
+        format without markdown or extra formatting. Use the following JSON structure:
+        {{
+            "topics": {{
+                "<topic_name>": {{
+                    "overview": "<brief overview>",
+                    "recommendations": "<recommended steps to learn>",
+                    "youtube_links": [
+                        "<video_link_1>",
+                        "<video_link_2>",
+                        "<video_link_3>",
+                        "<video_link_4>",
+                        "<video_link_5>"
+                    ]
+                }}
+            }}
+        }}
 
         The topics are: {', '.join(topics_list)}
         """
@@ -267,21 +283,21 @@ def get_recommendations():
         # Generate recommendations
         recommendations_raw = llama_generate_recommendations(prompt)
 
-        # Parse recommendations if they are in string format
+        # Ensure the response is valid JSON
         try:
             recommendations = json.loads(recommendations_raw)
         except json.JSONDecodeError:
-            recommendations = recommendations_raw  # If it's not valid JSON, return as-is
+            return jsonify({"message": "Failed to parse AI response as JSON", "raw_response": recommendations_raw}), 500
 
         return jsonify({
             "message": "Recommendations generated successfully",
-            "recommendations": recommendations
+            "recommendations": recommendations["topics"]  # Extract only relevant content
         }), 200
 
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
- 
+
 
 import faiss 
 from sentence_transformers import SentenceTransformer

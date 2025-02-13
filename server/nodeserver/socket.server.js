@@ -47,7 +47,6 @@ io.on("connection", (socket) => {
                 doubtId,
                 role
             });
-
             socket.emit("joined_chat", { doubtId });
             console.log(`${role} ${userId} joined chat ${doubtId}`);
         } catch (error) {
