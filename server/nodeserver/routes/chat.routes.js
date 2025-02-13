@@ -13,7 +13,7 @@ router.post("/join", joinchat);
 router.post("/send", sendMessage);
 
 // **📌 Fetch chat history**
-router.get("/history/:doubtId",getChatHistory );
+router.get("/history/:doubtId", getChatHistory);
 
 
 module.exports = router;
