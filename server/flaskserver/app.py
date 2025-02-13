@@ -230,25 +230,48 @@ def llama_generate_recommendations(prompt):
             return "Error: No content in response"
     except Exception as e:
         return f"Error connecting to Groq API: {e}"
-    
+ 
+ 
+ 
 @app.route('/getonly', methods=['GET'])
 @validate_token_middleware()
 def get_recommendations():
     user_id = request.user_id  # Extract user ID from the token
+    
     try:
+        # Fetch user statistics from Redis
         statistics = redis_client.hget(f"student:{user_id}", "statistics")
         
         if not statistics:
             return jsonify({"message": "No statistics found for the provided user."}), 404
         
-        topics = json.loads(statistics)
-        print("Topics:", topics)
-        if not topics:
+        # Convert JSON string to Python dictionary
+        topics_data = json.loads(statistics)
+
+        if not topics_data:
             return jsonify({"message": "No topics found for the provided user."}), 404
 
-        prompt = f"Act as an intelligent recommendation generator. Based on the topics provided, generate a brief yet informative overview for each topic and recommend relevant content. Additionally, provide five working YouTube video URLs for each topic that offer valuable insights, explanations, or tutorials. Ensure that the recommendations are diverse, covering different perspectives, and that the video links are accessible and relevant. " \
-                 f"The topics are: {', '.join(topics)}"
-        recommendations = llama_generate_recommendations(prompt)
+        # Extract only topic names
+        topics_list = list(topics_data.keys())
+
+        # Format recommendations prompt
+        prompt = f"""
+        Act as an intelligent recommendation generator. Based on the topics provided, generate a brief yet informative 
+        overview for each topic and recommend relevant content. Additionally, provide five working YouTube video URLs 
+        for each topic that offer valuable insights, explanations, or tutorials. Ensure that the recommendations are diverse, 
+        covering different perspectives, and that the video links are accessible and relevant.
+
+        The topics are: {', '.join(topics_list)}
+        """
+
+        # Generate recommendations
+        recommendations_raw = llama_generate_recommendations(prompt)
+
+        # Parse recommendations if they are in string format
+        try:
+            recommendations = json.loads(recommendations_raw)
+        except json.JSONDecodeError:
+            recommendations = recommendations_raw  # If it's not valid JSON, return as-is
 
         return jsonify({
             "message": "Recommendations generated successfully",
@@ -258,6 +281,7 @@ def get_recommendations():
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
+ 
 
 import faiss 
 from sentence_transformers import SentenceTransformer
