@@ -48,7 +48,7 @@ const doubtSchema = new mongoose.Schema({
     {
       sender: {
         type: mongoose.Schema.Types.ObjectId,
-        refPath: "senderModel", // Can be either student or teacher
+        refPath: "senderModel",
       },
       senderModel: {
         type: String,

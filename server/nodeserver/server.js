@@ -10,7 +10,7 @@ const doubtroutes = require('./routes/doubt.routes');
 const chatRoutes = require('./routes/chat.routes');
 const redis = require('./redis.connection');
 const io = require('./socket.server');
-
+const chatroutes = require('./routes/chat.routes');
 const morgan = require('morgan');
 
 app.use(express.json());
