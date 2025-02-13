@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import socket from '../utils/socket';
 import { chatService } from '../services/api';
@@ -8,20 +8,26 @@ const ChatRoom = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [error, setError] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [hasJoined, setHasJoined] = useState(false);
+  const messagesEndRef = useRef(null);
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
 
-  useEffect(() => {
-    const initializeChat = async () => {
-      if (!doubtId || !userInfo?._id) {
-        setError('Missing required information');
-        return;
-      }
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
+  useEffect(() => {
+    if (!doubtId || !userInfo?._id || hasJoined) {
+      return;
+    }
+
+    const initializeChat = async () => {
       try {
-        // Join chat room via API
+        // Join chat via API only once
         await chatService.joinChat(doubtId, userInfo._id, userInfo.role);
         
-        // Join socket room
+        // Join socket room only once
         socket.emit('join_chat', {
           doubtId,
           userId: userInfo._id,
@@ -31,29 +37,42 @@ const ChatRoom = () => {
         // Load chat history
         const chatHistory = await chatService.getChatHistory(doubtId);
         setMessages(chatHistory);
+        scrollToBottom();
 
-        // Listen for new messages
-        socket.on('chat_message', (message) => {
-          setMessages(prev => [...prev, message]);
-        });
-
-        socket.on('error', (error) => {
-          setError(error.message);
-        });
-
+        setIsConnected(true);
+        setHasJoined(true); // Mark as joined
       } catch (error) {
         console.error('Error initializing chat:', error);
-        setError(error.message);
+        setError(error.message || 'Failed to join chat');
       }
     };
 
     initializeChat();
 
+    // Clean up function
+    return () => {
+      if (socket.connected) {
+        socket.emit('leave_chat', { doubtId, userId: userInfo._id });
+      }
+    };
+  }, [doubtId, userInfo, hasJoined]); // Add hasJoined to dependencies
+
+  // Separate useEffect for socket event listeners
+  useEffect(() => {
+    socket.on('chat_message', (message) => {
+      setMessages(prev => [...prev, message]);
+      scrollToBottom();
+    });
+
+    socket.on('error', (error) => {
+      setError(error.message);
+    });
+
     return () => {
       socket.off('chat_message');
       socket.off('error');
     };
-  }, [doubtId, userInfo]);
+  }, []);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();

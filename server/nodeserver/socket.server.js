@@ -85,6 +85,11 @@ io.on("connection", (socket) => {
             }
         }
     });
+
+    socket.on('leave_chat', ({ doubtId, userId }) => {
+        socket.leave(doubtId);
+        io.to(doubtId).emit('user_left', { userId });
+    });
 });
 
 console.log(`WebSocket server running on port ${socketPort}`);

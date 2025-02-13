@@ -368,7 +368,7 @@ export const chatService = {
         try {
             const userInfo = localStorage.getItem('user-info');
             const { token } = JSON.parse(userInfo);
-            const response = await api2.post('/chat/send', {
+            const response = await api2.post('/user/chat/send', {
                 doubtId,
                 sender,
                 message
