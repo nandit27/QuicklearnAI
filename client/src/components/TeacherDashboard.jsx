@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import socket from '../utils/socket.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Star, Award, Trophy, ThumbsUp } from 'lucide-react';
+import { Star, Award, Trophy, ThumbsUp, Plus } from 'lucide-react';
 
 const RatingDisplay = ({ rating }) => {
   const getEmoji = (rating) => {
@@ -173,6 +173,17 @@ const TeacherDashboard = () => {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-black/40 backdrop-blur-md border border-white/10">
+          <CardContent className="flex justify-center p-6">
+            <Link to="/create-quiz">
+              <button className="px-8 py-3 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium rounded-xl hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 transition-all duration-300 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Create Quiz
+              </button>
+            </Link>
           </CardContent>
         </Card>
       </div>

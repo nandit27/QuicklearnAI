@@ -17,6 +17,8 @@ import MindMap from './pages/MindMap'
 import DoubtCreation from './components/DoubtCreation'
 import ChatRoom from './components/ChatRoom'
 import MatchedTeachers from './components/MatchedTeachers'
+import CreateQuiz from './pages/CreateQuiz'
+import QuizSession from './pages/QuizSession'
 
 function Home() {
   const contentRef = useRef()
@@ -96,6 +98,8 @@ function App() {
           <Route path="/doubt/create" element={<DoubtCreation />} />
           <Route path="/doubt/:doubtId/chat" element={<ChatRoom/>} />
           <Route path="/doubt/:doubtId/matched" element={<MatchedTeachers />} />
+          <Route path="/create-quiz" element={<CreateQuiz />} />
+          <Route path="/quiz-session/:quizId" element={<QuizSession />} />
         </Routes>
         
         <LoginModal 

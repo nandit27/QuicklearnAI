@@ -221,14 +221,14 @@ const QuizGenerator = () => {
             >
               Start Quiz
             </button>
-            <Link to="/mindmap">
+            {/* <Link to="/mindmap">
               <button 
                 onClick={handleMindMapNavigation}
                 className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 transition-all duration-300"
               >
                 Mind Map
               </button>
-            </Link>
+            </Link> */}
             <button
               onClick={handleGenerateSummary}
               disabled={loading}
