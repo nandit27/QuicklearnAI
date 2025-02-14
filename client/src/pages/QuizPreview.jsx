@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Save, Edit, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import socket from '../utils/socket';
 
 const QuestionCard = ({ question, index }) => {
   return (
@@ -42,6 +43,26 @@ const QuizPreview = () => {
   const navigate = useNavigate();
   const quiz = location.state?.quiz;
 
+  const handleShareQuiz = () => {
+    const userInfo = JSON.parse(localStorage.getItem('user-info'));
+    const teacherId = userInfo?._id;
+    
+    if (!teacherId || !quiz) return;
+    
+    // Generate unique room code (last 4 digits of teacherId + random 2 digits)
+    const roomId = teacherId.slice(-4) + Math.floor(Math.random() * 100).toString().padStart(2, '0');
+    
+    // Store quiz data in Redis via socket
+    socket.emit('store_quiz', {
+      roomId,
+      quizData: quiz,
+      teacherId
+    });
+
+    // Navigate to quiz lobby with room code
+    navigate(`/quiz-lobby/${roomId}`);
+  };
+
   if (!quiz) {
     return (
       <div className="min-h-screen bg-black text-white pt-24 flex items-center justify-center">
@@ -69,13 +90,17 @@ const QuizPreview = () => {
             <Button 
               variant="outline" 
               className="flex items-center gap-2 bg-white/5 border-white/10 hover:bg-white/10"
+              onClick={() => navigate('/create-quiz')}
             >
               <Edit className="w-4 h-4" />
               Edit Quiz
             </Button>
-            <Button className="flex items-center gap-2 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20">
+            <Button 
+              className="flex items-center gap-2 bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20"
+              onClick={handleShareQuiz}
+            >
               <Save className="w-4 h-4" />
-              Save Quiz
+              Share Quiz
             </Button>
           </div>
         </div>

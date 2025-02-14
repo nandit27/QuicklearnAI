@@ -3,17 +3,50 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Users } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import socket from '../utils/socket';
 
-const QuizLobby = ({ uniqueCode = "4rDH21" }) => {
+const QuizLobby = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { roomId } = useParams();
   const [students, setStudents] = useState([]);
   const [isCopied, setIsCopied] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const userInfo = JSON.parse(localStorage.getItem('user-info'));
+
+  useEffect(() => {
+    if (!userInfo || !roomId) return;
+
+    const role = userInfo.role;
+    setIsTeacher(role === 'teacher');
+
+    // Join quiz room
+    socket.emit('join_quiz_room', {
+      roomId,
+      userId: userInfo._id,
+      role
+    });
+
+    // Listen for room updates
+    socket.on('room_update', ({ students, teacher }) => {
+      setStudents(students);
+    });
+
+    // Listen for quiz start
+    socket.on('quiz_questions', (questions) => {
+      navigate(`/quiz-session/${roomId}`, { state: { questions } });
+    });
+
+    return () => {
+      socket.off('room_update');
+      socket.off('quiz_questions');
+    };
+  }, [roomId, userInfo]);
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(uniqueCode);
+      await navigator.clipboard.writeText(roomId);
       setIsCopied(true);
       toast({
         title: "Code Copied!",
@@ -27,8 +60,7 @@ const QuizLobby = ({ uniqueCode = "4rDH21" }) => {
   };
 
   const handleStartQuiz = () => {
-    // Navigate to quiz session or emit socket event to start quiz
-    navigate(`/quiz-session/${uniqueCode}`);
+    socket.emit('start_quiz', { roomId });
   };
 
   return (
@@ -40,7 +72,7 @@ const QuizLobby = ({ uniqueCode = "4rDH21" }) => {
             <h2 className="text-2xl font-semibold text-gray-400">UNIQUE CODE</h2>
             <div className="flex items-center justify-center gap-4">
               <span className="text-5xl font-bold text-[#00FF9D] tracking-wider">
-                {uniqueCode}
+                {roomId}
               </span>
               <button
                 onClick={copyToClipboard}

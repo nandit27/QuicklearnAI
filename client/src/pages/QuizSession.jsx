@@ -1,31 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import CircularTimer from '@/components/CircularTimer';
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from 'lucide-react';
+import socket from '../utils/socket';
 
-const QuizSession = ({ questionCount = 5 }) => {
+const QuizSession = () => {
   const navigate = useNavigate();
-  const [quizCompleted, setQuizCompleted] = useState(false);
-  const [results, setResults] = useState([]);
-  const totalTimeInSeconds = questionCount * 30;
+  const { roomId } = useParams();
+  const location = useLocation();
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [questions] = useState(location.state?.questions || []);
+  const [scores, setScores] = useState({});
+  const userInfo = JSON.parse(localStorage.getItem('user-info'));
+  const totalTimeInSeconds = questions.length * 30;
   const minutes = Math.floor(totalTimeInSeconds / 60);
   const seconds = totalTimeInSeconds % 60;
 
+  useEffect(() => {
+    if (!userInfo || !roomId) return;
+
+    // Listen for score updates
+    socket.on('update_scores', ({ scores }) => {
+      setScores(scores);
+    });
+
+    // Listen for final scores
+    socket.on('final_scores', ({ scores }) => {
+      if (userInfo.role === 'teacher') {
+        navigate('/quiz-results', { state: { scores } });
+      } else {
+        navigate('/student-results', { state: { 
+          score: scores[userInfo._id],
+          total: questions.length 
+        }});
+      }
+    });
+
+    // Auto-end quiz after time limit
+    const timeLimit = questions.length * 30 * 1000; // Convert to milliseconds
+    const timer = setTimeout(() => {
+      socket.emit('quiz_end', { roomId });
+    }, timeLimit);
+
+    return () => {
+      socket.off('update_scores');
+      socket.off('final_scores');
+      clearTimeout(timer);
+    };
+  }, [roomId, userInfo, questions]);
+
+  const handleSubmitAnswer = (selectedOption) => {
+    socket.emit('submit_answer', {
+      roomId,
+      userId: userInfo._id,
+      question: questions[currentQuestion],
+      selectedOption
+    });
+    setCurrentQuestion(prev => prev + 1);
+  };
+
   const handleTimeUp = () => {
-    setQuizCompleted(true);
-    // Here you would typically fetch the results from your backend
-    // For now, using mock data
-    setResults([
-      { student: "Top scorer", score: "10/10" }
-    ]);
+    socket.emit('quiz_end', { roomId });
   };
 
   const handleBack = () => {
     navigate('/teacher-dashboard');
   };
 
-  if (quizCompleted) {
+  if (Object.keys(scores).length > 0) {
     return (
       <div className="min-h-screen bg-black text-white pt-24">
         <div className="max-w-4xl mx-auto p-8">
@@ -40,10 +83,10 @@ const QuizSession = ({ questionCount = 5 }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((result, index) => (
-                    <tr key={index} className="border-b border-white/5">
-                      <td className="py-4 px-4">{result.student}</td>
-                      <td className="py-4 px-4">{result.score}</td>
+                  {Object.entries(scores).map(([studentId, score]) => (
+                    <tr key={studentId} className="border-b border-white/5">
+                      <td className="py-4 px-4">{studentId}</td>
+                      <td className="py-4 px-4">{score}</td>
                     </tr>
                   ))}
                 </tbody>
