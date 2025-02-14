@@ -37,12 +37,31 @@ const QuestionCard = ({ question, index }) => {
   );
 };
 
-const QuizPreview = () => {
+const QuizPreviewNew = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const quiz = location.state?.quiz;
+  const quizData = location.state?.quizData;
 
-  if (!quiz) {
+  console.log('Location State:', location.state);
+  console.log('Quiz Data:', quizData);
+
+  if (!location.state) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-24 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-red-400">No quiz data found. Please generate a quiz first.</p>
+          <button 
+            onClick={() => navigate('/create-quiz')}
+            className="text-[#00FF9D] hover:underline"
+          >
+            Return to Quiz Creator
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!quizData) {
     return (
       <div className="min-h-screen bg-black text-white pt-24 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -83,26 +102,19 @@ const QuizPreview = () => {
         <Card className="bg-black/40 backdrop-blur-md border border-white/10">
           <CardHeader className="border-b border-white/10">
             <CardTitle className="text-2xl font-bold">
-              <span className="text-[#00FF9D]">{quiz.topic_name}</span> Quiz
+              <span className="text-[#00FF9D]">{quizData.title}</span> Quiz
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            {Object.entries(quiz.questions).map(([difficulty, questions]) => (
-              <div key={difficulty} className="mb-8 last:mb-0">
-                <h2 className="text-xl font-semibold mb-4 capitalize">
-                  {difficulty} Questions
-                </h2>
-                <div className="space-y-6">
-                  {questions.map((question, idx) => (
-                    <QuestionCard 
-                      key={idx} 
-                      question={question} 
-                      index={idx} 
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="space-y-6">
+              {quizData.quiz.map((question, idx) => (
+                <QuestionCard 
+                  key={idx} 
+                  question={question} 
+                  index={idx} 
+                />
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -110,4 +122,4 @@ const QuizPreview = () => {
   );
 };
 
-export default QuizPreview;
+export default QuizPreviewNew; 

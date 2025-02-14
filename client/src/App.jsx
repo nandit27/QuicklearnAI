@@ -19,6 +19,8 @@ import ChatRoom from './components/ChatRoom'
 import MatchedTeachers from './components/MatchedTeachers'
 import CreateQuiz from './pages/CreateQuiz'
 import QuizSession from './pages/QuizSession'
+import QuizPreview from './pages/QuizPreview'
+import QuizPreviewNew from './pages/QuizPreviewNew'
 
 function Home() {
   const contentRef = useRef()
@@ -100,6 +102,8 @@ function App() {
           <Route path="/doubt/:doubtId/matched" element={<MatchedTeachers />} />
           <Route path="/create-quiz" element={<CreateQuiz />} />
           <Route path="/quiz-session/:quizId" element={<QuizSession />} />
+          <Route path="/quiz-preview" element={<QuizPreview />} />
+          <Route path="/quiz-preview-new" element={<QuizPreviewNew />} />
         </Routes>
         
         <LoginModal 

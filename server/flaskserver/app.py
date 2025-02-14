@@ -451,6 +451,64 @@ def generate_mind_map_endpoint():
    
     return jsonify(mind_map)
 
+llm = ChatGroq(
+    model="llama-3.3-70b-specdec",
+    temperature=0,
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+)
+
+def generate_quiz(topic: str, num_questions: int, difficulty: str):
+    """Generate a quiz based on the given topic."""
+    prompt = f"""
+    Create a quiz on the topic: "{topic}". Generate {num_questions} multiple-choice questions.
+    The questions should be of {difficulty} difficulty.
+    Format the output strictly in JSON format as follows:
+    
+    {{
+       
+        "questions": {{
+            "{difficulty}": [
+                {{
+                    "question": "What is ...?",
+                    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+                    "answer": "Option 1"
+                }}
+            ]
+        }}
+    }}
+    """
+    response = llm.invoke(prompt)
+    return response.content if hasattr(response, 'content') else response.text
+
+@app.route("/llm_quiz", methods=["POST"])
+def quiz_endpoint():
+    data = request.json
+    topic = data.get("topic")
+    num_questions = data.get("num_questions")
+    difficulty = data.get("difficulty")
+    
+    if not topic:
+        return jsonify({"error": "Topic is required"}), 400
+    
+    try:
+        response_content = generate_quiz(topic, num_questions, difficulty)
+
+        
+        try:
+            result = json.loads(response_content)
+        except json.JSONDecodeError:
+            json_start = response_content.find('{')
+            json_end = response_content.rfind('}') + 1
+            if json_start != -1 and json_end != -1:
+                json_str = response_content[json_start:json_end]
+                result = json.loads(json_str)
+            else:
+                return jsonify({"error": "Could not parse JSON from response"}), 500
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/', methods=['GET'])
 def health():
