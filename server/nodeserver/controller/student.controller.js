@@ -256,11 +256,22 @@ async function giveratingtoteacher(req, res) {
     }
 }
 
+async function getdoubthistory(req, res) {
+    try {
+        const userId = req.userId;
+        const doubts = await Doubt.find({ student: userId }).sort({ createdAt: -1 });
+        res.status(200).json(doubts);
+    } catch (error) {
+        console.error("Error fetching doubt history:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
 
 module.exports = {
     storestatics,
     getstatistics,
     uploadFile,
     upload,
-    giveratingtoteacher
+    giveratingtoteacher,
+    getdoubthistory
 };
