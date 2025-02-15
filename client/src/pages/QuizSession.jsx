@@ -10,25 +10,52 @@ const QuizSession = () => {
   const { roomId } = useParams();
   const location = useLocation();
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [questions, setQuestions] = useState([]);
+  const [questionsList, setQuestionsList] = useState([]);
+  const [questions, setQuestions] = useState(null);
   const [scores, setScores] = useState({});
   const [selectedOption, setSelectedOption] = useState(null);
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
   const isTeacher = userInfo?.role === 'teacher';
 
   useEffect(() => {
+    console.log("userInfo", userInfo);
+    console.log("roomId", roomId);
     if (!userInfo || !roomId) return;
+
+    // Add connection status check
+    if (!socket.connected) {
+      console.log('Socket connecting...');
+      socket.connect();
+    }
+
+    // Add connection event listeners
+    socket.on('connect', () => {
+      console.log('Socket connected successfully');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
 
     // If questions exist in location state, set them
     if (location.state?.questions) {
-      setQuestions(location.state.questions);
+      console.log("Received questions from state:", location.state.questions);
+      
+      // Handle different question formats
+      if (location.state.questions.medium) {
+        // Format 1: {questions: {medium: [...questions]}}
+        setQuestionsList(location.state.questions.medium);
+        setQuestions(location.state.questions);
+      } else if (location.state.questions.questions?.medium) {
+        // Format 2: {questions: {questions: {medium: [...questions]}}}
+        setQuestionsList(location.state.questions.questions.medium);
+        setQuestions(location.state.questions.questions);
+      } else if (Array.isArray(location.state.questions)) {
+        // Format 3: Direct array of questions
+        setQuestionsList(location.state.questions);
+        setQuestions({ medium: location.state.questions });
+      }
     }
-
-    // Listen for quiz questions from socket
-    socket.on('quiz_questions', (quizData) => {
-      console.log('Received quiz data:', quizData);
-      setQuestions(quizData);
-    });
 
     // Listen for score updates
     socket.on('update_scores', ({ scores }) => {
@@ -42,25 +69,32 @@ const QuizSession = () => {
       } else {
         navigate('/student-results', { state: { 
           score: scores[userInfo._id],
-          total: questions.length 
+          total: questionsList.length 
         }});
       }
     });
 
     return () => {
+      socket.off('connect');
+      socket.off('connect_error');
       socket.off('quiz_questions');
       socket.off('update_scores');
       socket.off('final_scores');
     };
   }, [roomId, userInfo, location.state]);
 
+  useEffect(() => {
+    console.log("questionsList updated:", questionsList);
+    console.log("questions updated:", questions);
+  }, [questionsList, questions]);
+
   const handleSubmitAnswer = () => {
-    if (!selectedOption || currentQuestion >= questions.length) return;
+    if (!selectedOption || currentQuestion >= questionsList.length) return;
     
     socket.emit('submit_answer', {
       roomId,
       userId: userInfo._id,
-      question: questions[currentQuestion],
+      question: questionsList[currentQuestion],
       selectedOption
     });
     
@@ -90,8 +124,8 @@ const QuizSession = () => {
     );
   }
 
-  // Student quiz interface
-  if (questions.length === 0) {
+  // Show loading state if no questions
+  if (!questionsList || questionsList.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white pt-24 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00FF9D]"></div>
@@ -99,13 +133,28 @@ const QuizSession = () => {
     );
   }
 
-  if (currentQuestion >= questions.length) {
+  // Show completion state
+  if (currentQuestion >= questionsList.length) {
     return (
       <div className="min-h-screen bg-black text-white pt-24">
         <div className="max-w-4xl mx-auto p-8 text-center">
           <h2 className="text-2xl font-semibold mb-4">Quiz Completed!</h2>
           <p className="text-gray-400">Waiting for final results...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Get the current question from the questionsList array
+  const currentQuiz = questionsList[currentQuestion];
+  console.log("questionsList", questionsList);
+  console.log("currentQuiz", currentQuiz);
+  
+  // Add safety check for currentQuiz and its properties
+  if (!currentQuiz?.question || !Array.isArray(currentQuiz?.options)) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-24 flex items-center justify-center">
+        <div className="text-red-500">Error: Invalid question data</div>
       </div>
     );
   }
@@ -117,15 +166,15 @@ const QuizSession = () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">
-                Question {currentQuestion + 1} of {questions.length}
+                Question {currentQuestion + 1} of {questionsList.length}
               </h2>
               <CircularTimer duration={30} onComplete={handleSubmitAnswer} />
             </div>
             
-            <p className="text-lg">{questions[currentQuestion].question}</p>
+            <p className="text-lg">{currentQuiz.question}</p>
             
             <div className="space-y-3">
-              {questions[currentQuestion].options.map((option, idx) => (
+              {currentQuiz.options.map((option, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedOption(option)}

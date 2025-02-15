@@ -137,6 +137,7 @@ io.on("connection", (socket) => {
 
             // Get quiz data from Redis
             const quizData = await redis.get(`quiz:${roomId}`);
+            console.log(quizData);
             if (!quizData) {
                 socket.emit("error", { message: "No quiz found for this room" });
                 return;
@@ -144,6 +145,7 @@ io.on("connection", (socket) => {
 
             // Parse quiz data and emit to all users in the room
             const parsedQuizData = JSON.parse(quizData);
+            console.log(parsedQuizData);
             
             // Emit to the entire room instead of individual sockets
             io.to(roomId).emit("quiz_questions", parsedQuizData);
@@ -254,15 +256,29 @@ io.on("connection", (socket) => {
     });
 
     // Store quiz in Redis when teacher creates it
-    socket.on('store_quiz', async ({ roomId, quizData, teacherId }) => {
-        try {
-            await redis.set(`quiz:${roomId}`, JSON.stringify(quizData), 'EX', 3600); // 1 hour expiry
-            socket.join(roomId);
-            console.log(`Quiz stored for room ${roomId}`);
-        } catch (error) {
-            socket.emit('error', { message: 'Failed to store quiz' });
-        }
-    });
+   // Add this after the connection handler
+socket.on("store_quiz", async ({ roomId, quizData, teacherId }) => {
+    try {
+        // Store quiz data in Redis with a prefix
+        await redis.set(`quiz:${roomId}`, JSON.stringify(quizData));
+        
+        // Initialize room data
+        quizRooms.set(roomId, {
+            teacher: teacherId,
+            students: [],
+            scores: {},
+            socketIds: { [teacherId]: socket.id }
+        });
+        
+        // Join the socket to the room
+        socket.join(roomId);
+        
+        console.log(`Quiz stored for room ${roomId}`);
+    } catch (error) {
+        console.error("Error storing quiz:", error);
+        socket.emit("error", { message: "Failed to store quiz" });
+    }
+});
 
     // Add this after the store_quiz event handler
     socket.on('verify_room', async ({ roomId, userId, role }) => {

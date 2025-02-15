@@ -105,7 +105,7 @@ function App() {
           <Route path="/doubt/:doubtId/chat" element={<ChatRoom/>} />
           <Route path="/doubt/:doubtId/matched" element={<MatchedTeachers />} />
           <Route path="/create-quiz" element={<CreateQuiz />} />
-          <Route path="/quiz-session/:quizId" element={<QuizSession />} />
+          <Route path="/quiz-session/:roomId" element={<QuizSession />} />
           <Route path="/quiz-preview" element={<QuizPreview />} />
           <Route path="/quiz-preview-new" element={<QuizPreviewNew />} />
           <Route path="/quiz-lobby/:roomId" element={<QuizLobby />} />
