@@ -60,7 +60,13 @@ const QuizLobby = () => {
   };
 
   const handleStartQuiz = () => {
-    socket.emit('start_quiz', { roomId });
+    if (!roomId) return;
+    
+    // Emit start_quiz event with room ID and teacher ID
+    socket.emit('start_quiz', { 
+      roomId,
+      teacherId: userInfo._id 
+    });
   };
 
   return (

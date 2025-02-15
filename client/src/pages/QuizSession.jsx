@@ -10,15 +10,25 @@ const QuizSession = () => {
   const { roomId } = useParams();
   const location = useLocation();
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [questions] = useState(location.state?.questions || []);
+  const [questions, setQuestions] = useState([]);
   const [scores, setScores] = useState({});
+  const [selectedOption, setSelectedOption] = useState(null);
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
-  const totalTimeInSeconds = questions.length * 30;
-  const minutes = Math.floor(totalTimeInSeconds / 60);
-  const seconds = totalTimeInSeconds % 60;
+  const isTeacher = userInfo?.role === 'teacher';
 
   useEffect(() => {
     if (!userInfo || !roomId) return;
+
+    // If questions exist in location state, set them
+    if (location.state?.questions) {
+      setQuestions(location.state.questions);
+    }
+
+    // Listen for quiz questions from socket
+    socket.on('quiz_questions', (quizData) => {
+      console.log('Received quiz data:', quizData);
+      setQuestions(quizData);
+    });
 
     // Listen for score updates
     socket.on('update_scores', ({ scores }) => {
@@ -27,7 +37,7 @@ const QuizSession = () => {
 
     // Listen for final scores
     socket.on('final_scores', ({ scores }) => {
-      if (userInfo.role === 'teacher') {
+      if (isTeacher) {
         navigate('/quiz-results', { state: { scores } });
       } else {
         navigate('/student-results', { state: { 
@@ -37,69 +47,64 @@ const QuizSession = () => {
       }
     });
 
-    // Auto-end quiz after time limit
-    const timeLimit = questions.length * 30 * 1000; // Convert to milliseconds
-    const timer = setTimeout(() => {
-      socket.emit('quiz_end', { roomId });
-    }, timeLimit);
-
     return () => {
+      socket.off('quiz_questions');
       socket.off('update_scores');
       socket.off('final_scores');
-      clearTimeout(timer);
     };
-  }, [roomId, userInfo, questions]);
+  }, [roomId, userInfo, location.state]);
 
-  const handleSubmitAnswer = (selectedOption) => {
+  const handleSubmitAnswer = () => {
+    if (!selectedOption || currentQuestion >= questions.length) return;
+    
     socket.emit('submit_answer', {
       roomId,
       userId: userInfo._id,
       question: questions[currentQuestion],
       selectedOption
     });
+    
+    setSelectedOption(null);
     setCurrentQuestion(prev => prev + 1);
   };
 
-  const handleTimeUp = () => {
-    socket.emit('quiz_end', { roomId });
-  };
-
-  const handleBack = () => {
-    navigate('/teacher-dashboard');
-  };
-
-  if (Object.keys(scores).length > 0) {
+  // Teacher waiting screen
+  if (isTeacher) {
     return (
       <div className="min-h-screen bg-black text-white pt-24">
         <div className="max-w-4xl mx-auto p-8">
           <Card className="bg-black/40 backdrop-blur-md border border-white/10 p-8">
-            <h2 className="text-2xl font-semibold mb-8">RESULTS:</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-xl">Top scorer</th>
-                    <th className="text-left py-3 px-4 text-xl">Scored</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(scores).map(([studentId, score]) => (
-                    <tr key={studentId} className="border-b border-white/5">
-                      <td className="py-4 px-4">{studentId}</td>
-                      <td className="py-4 px-4">{score}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <h2 className="text-2xl font-semibold mb-4">Quiz in Progress</h2>
+            <p className="text-gray-400 mb-6">Waiting for students to complete the quiz...</p>
+            <div className="space-y-4">
+              {Object.entries(scores).map(([studentId, score]) => (
+                <div key={studentId} className="flex justify-between border-b border-white/10 pb-2">
+                  <span>Student {studentId}</span>
+                  <span>Score: {score}</span>
+                </div>
+              ))}
             </div>
-            
-            <button
-              onClick={handleBack}
-              className="mt-8 w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] hover:bg-[#00FF9D]/20 h-12 rounded-lg"
-            >
-              BACK
-            </button>
           </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Student quiz interface
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-24 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00FF9D]"></div>
+      </div>
+    );
+  }
+
+  if (currentQuestion >= questions.length) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-24">
+        <div className="max-w-4xl mx-auto p-8 text-center">
+          <h2 className="text-2xl font-semibold mb-4">Quiz Completed!</h2>
+          <p className="text-gray-400">Waiting for final results...</p>
         </div>
       </div>
     );
@@ -109,21 +114,39 @@ const QuizSession = () => {
     <div className="min-h-screen bg-black text-white pt-24">
       <div className="max-w-4xl mx-auto p-8">
         <Card className="bg-black/40 backdrop-blur-md border border-white/10 p-8">
-          <div className="text-center space-y-8">
-            <h2 className="text-2xl font-semibold text-gray-400">
-              PLEASE WAIT, THE STUDENTS ARE APPEARING FOR THE QUIZ
-            </h2>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-semibold">
+                Question {currentQuestion + 1} of {questions.length}
+              </h2>
+              <CircularTimer duration={30} onComplete={handleSubmitAnswer} />
+            </div>
             
-            <div className="flex justify-center">
-              <CircularTimer 
-                duration={totalTimeInSeconds}
-                onTimeUp={handleTimeUp}
-              />
+            <p className="text-lg">{questions[currentQuestion].question}</p>
+            
+            <div className="space-y-3">
+              {questions[currentQuestion].options.map((option, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedOption(option)}
+                  className={`w-full p-4 text-left rounded-lg border 
+                    ${selectedOption === option 
+                      ? 'border-[#00FF9D] bg-[#00FF9D]/10 text-[#00FF9D]' 
+                      : 'border-white/10 hover:bg-white/5'}`}
+                >
+                  {option}
+                </button>
+              ))}
             </div>
 
-            <p className="text-gray-500">
-              Quiz duration: {minutes}:{seconds.toString().padStart(2, '0')} minutes
-            </p>
+            <button
+              onClick={handleSubmitAnswer}
+              disabled={!selectedOption}
+              className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] 
+                hover:bg-[#00FF9D]/20 h-12 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Submit Answer
+            </button>
           </div>
         </Card>
       </div>

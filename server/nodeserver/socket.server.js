@@ -80,50 +80,45 @@ io.on("connection", (socket) => {
             if (!quizRooms.has(roomId)) {
                 quizRooms.set(roomId, {
                     teacher: null,
-                    students: new Set(),
-                    scores: new Map(),
-                    socketIds: new Map()
+                    students: [],
+                    scores: {},
+                    socketIds: {}
                 });
             }
 
             const room = quizRooms.get(roomId);
-            if (!room) {
-                socket.emit("error", { message: "Failed to create/get room" });
-                return;
-            }
-
+            
             // Handle teacher join
             if (role === "teacher") {
                 room.teacher = userId;
-                room.socketIds.set(userId, socket.id);
+                room.socketIds[userId] = socket.id;
             } 
             // Handle student join
             else if (role === "student") {
-                // Remove old socket connection if exists
-                if (room.socketIds.has(userId)) {
-                    const oldSocketId = room.socketIds.get(userId);
-                    if (oldSocketId && oldSocketId !== socket.id) {
-                        const oldSocket = io.sockets.sockets.get(oldSocketId);
-                        if (oldSocket) {
-                            oldSocket.leave(roomId);
-                        }
-                    }
-                }
-
                 socket.join(roomId);
-                room.students.add(userId);
-                room.socketIds.set(userId, socket.id);
-                room.scores.set(userId, 0);
+                
+                // Add student if not already in the room
+                if (!room.students.includes(userId)) {
+                    room.students.push(userId);
+                    room.scores[userId] = 0;
+                }
+                room.socketIds[userId] = socket.id;
             }
 
-            // Emit room update to all clients in the room
-            io.to(roomId).emit("room_update", {
-                students: Array.from(room.students),
-                teacher: room.teacher
+            // Get user info from Redis
+            redis.get(`user:${userId}`).then(userInfo => {
+                const user = userInfo ? JSON.parse(userInfo) : null;
+                
+                // Emit updated room data to all clients in the room
+                io.to(roomId).emit('room_update', {
+                    students: room.students.map(studentId => ({
+                        id: studentId,
+                        name: studentId === userId ? (user?.name) : 'Student',
+                        score: room.scores[studentId]
+                    })),
+                    teacher: room.teacher
+                });
             });
-
-            console.log(`${role} ${userId} joined quiz room ${roomId}`);
-            console.log(`Current students in room:`, Array.from(room.students));
 
         } catch (error) {
             console.error("Error joining quiz room:", error);
@@ -132,20 +127,32 @@ io.on("connection", (socket) => {
     });
 
     // Start Quiz
-    socket.on("start_quiz", async ({ roomId }) => {
-        const room = quizRooms.get(roomId);
-        if (!room || !room.teacher) return;
-
+    socket.on("start_quiz", async ({ roomId, teacherId }) => {
         try {
-            const data = await redis.get(roomId);
-            if (data) {
-                io.to(roomId).emit("quiz_questions", JSON.parse(data));
-            } else {
-                socket.emit("error", { message: "No quiz found in Redis" });
+            const room = quizRooms.get(roomId);
+            if (!room || room.teacher !== teacherId) {
+                socket.emit("error", { message: "Unauthorized to start quiz" });
+                return;
             }
+
+            // Get quiz data from Redis
+            const quizData = await redis.get(`quiz:${roomId}`);
+            if (!quizData) {
+                socket.emit("error", { message: "No quiz found for this room" });
+                return;
+            }
+
+            // Parse quiz data and emit to all users in the room
+            const parsedQuizData = JSON.parse(quizData);
+            
+            // Emit to the entire room instead of individual sockets
+            io.to(roomId).emit("quiz_questions", parsedQuizData);
+            
+            console.log(`Quiz started in room ${roomId} with ${room.students.length} students`);
+
         } catch (error) {
-            console.error("Error fetching quiz:", error);
-            socket.emit("error", { message: "Failed to fetch quiz" });
+            console.error("Error starting quiz:", error);
+            socket.emit("error", { message: "Failed to start quiz" });
         }
     });
 
@@ -154,12 +161,22 @@ io.on("connection", (socket) => {
         const room = quizRooms.get(roomId);
         if (!room) return;
 
-        const correctAnswer = question.answer;
-        if (selectedOption === correctAnswer) {
-            room.scores.set(userId, room.scores.get(userId) + 1);
+        if (selectedOption === question.answer) {
+            room.scores[userId] = (room.scores[userId] || 0) + 1;
         }
 
+        // Emit updated scores to all users in the room
         io.to(roomId).emit("update_scores", { scores: room.scores });
+
+        // Check if all students have completed
+        const allCompleted = room.students.every(studentId => {
+            const studentSocket = room.socketIds[studentId];
+            return !studentSocket || room.scores[studentId] !== undefined;
+        });
+
+        if (allCompleted) {
+            io.to(roomId).emit("final_scores", { scores: room.scores });
+        }
     });
 
     // End Quiz & Store Statistics in Redis
@@ -196,17 +213,16 @@ io.on("connection", (socket) => {
                 let userIdToRemove = null;
                 
                 // Find the user with this socket ID
-                for (const [userId, socketId] of room.socketIds.entries()) {
+                Object.entries(room.socketIds).forEach(([userId, socketId]) => {
                     if (socketId === socket.id) {
                         userIdToRemove = userId;
-                        break;
                     }
-                }
+                });
 
                 if (userIdToRemove) {
                     // Clean up user data
                     room.students.delete(userIdToRemove);
-                    room.socketIds.delete(userIdToRemove);
+                    delete room.socketIds[userIdToRemove];
                     room.scores.delete(userIdToRemove);
 
                     // Handle teacher disconnect
@@ -252,33 +268,12 @@ io.on("connection", (socket) => {
     socket.on('verify_room', async ({ roomId, userId, role }) => {
         try {
             const exists = await redis.exists(`quiz:${roomId}`);
-            if (exists) {
-                const quizData = await redis.get(`quiz:${roomId}`);
-                const questions = JSON.parse(quizData);
-                
-                if (role === 'student') {
-                    // Add student to room if not already present
-                    const room = quizRooms.get(roomId) || { 
-                        teacher: null, 
-                        students: [], 
-                        scores: {} 
-                    };
-                    
-                    if (!room.students.includes(userId)) {
-                        room.students.push(userId);
-                        room.scores[userId] = 0;
-                        quizRooms.set(roomId, room);
-                    }
-                }
-                
-                socket.emit('room_verified', { 
-                    exists: true, 
-                    questions 
-                });
-            } else {
-                socket.emit('room_verified', { exists: false });
-            }
+            socket.emit('room_verified', { 
+                exists: exists === 1,  // Redis exists returns 1 if key exists, 0 if not
+                roomId
+            });
         } catch (error) {
+            console.error("Error verifying room:", error);
             socket.emit('error', { message: 'Failed to verify room' });
         }
     });

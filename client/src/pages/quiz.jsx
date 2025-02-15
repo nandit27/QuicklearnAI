@@ -432,14 +432,32 @@ const QuizJoinSection = () => {
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
 
   useEffect(() => {
+    // Check if socket is connected
+    if (!socket.connected) {
+      try {
+        socket.connect();
+      } catch (error) {
+        console.error('Socket connection failed:', error);
+        setError('Connection to server failed. Please try again.');
+        setIsVerifying(false);
+      }
+    }
+
     // Listen for room verification response
-    socket.on('room_verified', ({ exists, questions }) => {
+    socket.on('room_verified', ({ exists }) => {
       setIsVerifying(false);
       if (exists) {
         navigate(`/student-lobby/${joinCode}`);
       } else {
         setError('Invalid quiz code or quiz has expired');
       }
+    });
+
+    // Add connection error handler
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      setError('Connection to server failed. Please try again.');
+      setIsVerifying(false);
     });
 
     socket.on('error', (error) => {
@@ -449,6 +467,7 @@ const QuizJoinSection = () => {
 
     return () => {
       socket.off('room_verified');
+      socket.off('connect_error');
       socket.off('error');
     };
   }, [joinCode, navigate]);
@@ -465,14 +484,29 @@ const QuizJoinSection = () => {
         return;
       }
 
+      // Check socket connection before proceeding
+      if (!socket.connected) {
+        setError('Not connected to server. Please refresh the page.');
+        return;
+      }
+
       setError('');
       setIsVerifying(true);
+
+      // Add timeout to prevent infinite verification
+      const timeout = setTimeout(() => {
+        setIsVerifying(false);
+        setError('Verification timeout. Please try again.');
+      }, 10000); // 10 seconds timeout
 
       // Emit verify_room event
       socket.emit('verify_room', {
         roomId: joinCode,
         userId: userInfo._id,
         role: 'student'
+      }, () => {
+        // Clear timeout when acknowledgment is received
+        clearTimeout(timeout);
       });
 
     } catch (error) {

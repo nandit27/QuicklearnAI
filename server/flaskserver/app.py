@@ -339,31 +339,25 @@ chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
 # Initialize text-to-speech engine
-engine = pyttsx3.init()
+
 
 def clean_response(text):
     """Clean and format the LLM response."""
-    # Remove HTML tags
     text = BeautifulSoup(text, "html.parser").get_text()
-    
-    # Decode HTML entities
     text = html.unescape(text)
-    
-    # Remove multiple newlines
     text = re.sub(r'\n\s*\n', '\n\n', text)
-    
-    # Remove special characters but keep basic punctuation
     text = re.sub(r'[^\w\s.,!?-]', '', text)
-    
-    # Remove extra whitespace
     text = ' '.join(text.split())
-    
     return text
-
+# count = 0 
 def speak_text(text):
-    """Convert text to speech."""
+    """Convert text to speech with a separate engine instance for each call."""
     try:
+        
+        engine = pyttsx3.init()  # Reinitialize engine every time
+        engine.setProperty('rate', 150)  # Adjust speed if needed
         engine.say(text)
+        print("speaking")
         engine.runAndWait()
     except Exception as e:
         print(f"Text-to-speech error: {str(e)}")
@@ -374,11 +368,7 @@ def extract_text_from_pdf(pdf_file):
 
 def extract_text_from_pptx(pptx_path):
     prs = Presentation(pptx_path)
-    text = []
-    for slide in prs.slides:
-        for shape in slide.shapes:
-            if hasattr(shape, "text"):  
-                text.append(shape.text)
+    text = [shape.text for slide in prs.slides for shape in slide.shapes if hasattr(shape, "text")]
     return " ".join(text)
 
 @app.route("/upload", methods=["POST"])
@@ -419,12 +409,10 @@ def query_file():
         data = request.get_json()
         query = data.get("query", "")
         
-        # Get query results
         query_embedding = model.encode(query).tolist()
         results = collection.query(query_embeddings=[query_embedding], n_results=3)
         retrieved_texts = "\n".join(results["documents"][0])
         
-        # Generate response using Gemini
         prompt = f"""
         Based on the following context, please provide a clear and concise answer to the question.
         If the answer cannot be found in the context, please say so.
@@ -435,12 +423,12 @@ def query_file():
         """
         
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
-        
-        # Clean the response
         cleaned_response = clean_response(response.text)
         
-        # Start text-to-speech in a separate thread
-        Thread(target=speak_text, args=(cleaned_response,), daemon=True).start()
+        # Run text-to-speech in a separate thread to avoid blocking
+        speech_thread = Thread(target=speak_text, args=(cleaned_response,))
+        speech_thread.daemon = True  # Ensures thread exits when the program stops
+        speech_thread.start()
         
         return jsonify({
             "answer": cleaned_response,
@@ -455,29 +443,30 @@ def query_file():
             "voice_enabled": False
         }), 500
 
-# Configure text-to-speech settings (optional)
-@app.route("/configure-voice", methods=["POST"])
-def configure_voice():
-    try:
-        data = request.get_json()
-        rate = data.get("rate", 150)  # Default speaking rate
-        volume = data.get("volume", 1.0)  # Default volume
-        voice_id = data.get("voice_id")  # Voice identifier
+
+# # Configure text-to-speech settings (optional)
+# @app.route("/configure-voice", methods=["POST"])
+# def configure_voice():
+#     try:
+#         data = request.get_json()
+#         rate = data.get("rate", 110)  # Default speaking rate
+#         volume = data.get("volume", 1.0)  # Default volume
+#         voice_id = data.get("voice_id")  # Voice identifier
         
-        engine.setProperty('rate', rate)
-        engine.setProperty('volume', volume)
+#         engine.setProperty('rate', rate)
+#         engine.setProperty('volume', volume)
         
-        if voice_id:
-            voices = engine.getProperty('voices')
-            for voice in voices:
-                if voice.id == voice_id:
-                    engine.setProperty('voice', voice.id)
-                    break
+#         if voice_id:
+#             voices = engine.getProperty('voices')
+#             for voice in voices:
+#                 if voice.id == voice_id:
+#                     engine.setProperty('voice', voice.id)
+#                     break
         
-        return jsonify({"message": "Voice settings updated successfully"}), 200
-    except Exception as e:
-        return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
-# MindMap
+#         return jsonify({"message": "Voice settings updated successfully"}), 200
+#     except Exception as e:
+#         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
+# # MindMap
 
 def fetch_youtube_transcript(video_url):
     try:
