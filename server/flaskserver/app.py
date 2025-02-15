@@ -321,6 +321,9 @@ groq_sys_prompt = ChatPromptTemplate.from_template(
     "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
     "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
 )
+import threading
+import time
+
 
 embedding_model = SentenceTransformer('multi-qa-mpnet-base-cos-v1')  # Pre-trained model for embeddings
 dimension = embedding_model.get_sentence_embedding_dimension()
@@ -338,8 +341,47 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
-# Initialize text-to-speech engine
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+class TextToSpeechManager:
+    def __init__(self):
+        self.lock = threading.Lock()
+    
+    def speak(self, text):
+        try:
+            with self.lock:  # Ensure only one speech operation happens at a time
+                engine = None
+                try:
+                    engine = pyttsx3.init()
+                    engine.setProperty('rate', 150)
+                    engine.setProperty('volume', 1.0)
+                    engine.say(text)
+                    engine.runAndWait() 
+                    print("spoke")
+                    engine.startLoop(False)  # Start the event loop without blocking
+                    engine.iterate()  # Process queued commands
+                    engine.endLoop()  # End the event loop
+                    logger.info("Speech completed successfully")
+                finally:
+                    if engine:
+                        try:
+                            engine.stop()
+                        except:
+                            pass
+                        del engine
+        except Exception as e:
+            logger.error(f"Text-to-speech error: {str(e)}")
+            
+    def start_speaking(self, text):
+        """Start a new thread for speaking"""
+        thread = Thread(target=self.speak, args=(text,))
+        thread.daemon = True  # Make thread daemon so it doesn't block program exit
+        thread.start()
+        return thread
+
+# Create a global instance of the TTS manager
+tts_manager = TextToSpeechManager()
 
 def clean_response(text):
     """Clean and format the LLM response."""
@@ -349,18 +391,10 @@ def clean_response(text):
     text = re.sub(r'[^\w\s.,!?-]', '', text)
     text = ' '.join(text.split())
     return text
-# count = 0 
+
 def speak_text(text):
-    """Convert text to speech with a separate engine instance for each call."""
-    try:
-        
-        engine = pyttsx3.init()  # Reinitialize engine every time
-        engine.setProperty('rate', 150)  # Adjust speed if needed
-        engine.say(text)
-        print("speaking")
-        engine.runAndWait()
-    except Exception as e:
-        print(f"Text-to-speech error: {str(e)}")
+    """Convert text to speech using the TTS manager."""
+    tts_manager.speak(text)
 
 def extract_text_from_pdf(pdf_file):
     reader = PdfReader(pdf_file)
@@ -403,11 +437,34 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/test-audio", methods=["GET"])
+def test_audio():
+    try:
+        test_text = "This is a test of the text to speech system"
+        logger.info("Testing text-to-speech with test message")
+        
+        # Start speech in a new thread
+        speech_thread = tts_manager.start_speaking(test_text)
+        
+        return jsonify({
+            "message": "Audio test initiated",
+            "test_text": test_text,
+            "status": "Speech initiated"
+        })
+    except Exception as e:
+        logger.error(f"Audio test failed: {str(e)}")
+        return jsonify({
+            "error": "Audio test failed",
+            "details": str(e)
+        }), 500
+
 @app.route("/query", methods=["POST"])
 def query_file():
     try:
         data = request.get_json()
         query = data.get("query", "")
+        
+        logger.info(f"Received query: {query}")
         
         query_embedding = model.encode(query).tolist()
         results = collection.query(query_embeddings=[query_embedding], n_results=3)
@@ -425,18 +482,20 @@ def query_file():
         response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
         cleaned_response = clean_response(response.text)
         
-        # Run text-to-speech in a separate thread to avoid blocking
-        speech_thread = Thread(target=speak_text, args=(cleaned_response,))
-        speech_thread.daemon = True  # Ensures thread exits when the program stops
-        speech_thread.start()
+        # Add a small delay before starting new speech
+        time.sleep(0.1)  # 100ms delay
+        
+        speech_thread = tts_manager.start_speaking(cleaned_response)
         
         return jsonify({
             "answer": cleaned_response,
-            "voice_enabled": True
+            "voice_enabled": True,
+            "status": "Speech initiated"
         })
         
     except Exception as e:
         error_message = f"Error processing query: {str(e)}"
+        logger.error(error_message)
         return jsonify({
             "error": error_message,
             "answer": "I apologize, but I encountered an error while processing your query. Please try again.",
@@ -465,6 +524,30 @@ def query_file():
         
 #         return jsonify({"message": "Voice settings updated successfully"}), 200
 #     except Exception as e:
+#         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
+
+# Configure text-to-speech settings (optional)
+# @app.route("/configure-voice", methods=["POST"])
+# def configure_voice():
+#     try:
+#         data = request.get_json()
+#         rate = data.get("rate", 110)  # Default speaking rate
+#         volume = data.get("volume", 1.0)  # Default volume
+#         voice_id = data.get("voice_id")  # Voice identifier
+        
+#         engine.setProperty('rate', rate)
+#         engine.setProperty('volume', volume)
+        
+#         if voice_id:
+#             voices = engine.getProperty('voices')
+#             for voice in voices:
+#                 if voice.id == voice_id:
+#                     engine.setProperty('voice', voice.id)
+#                     break
+        
+#         return jsonify({"message": "Voice settings updated successfully"}), 200
+#     except Exception as e:
+#         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
 #         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
 # # MindMap
 

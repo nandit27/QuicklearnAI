@@ -9,6 +9,7 @@ const QuizResults = () => {
   const navigate = useNavigate();
   const { scores } = location.state || {};
 
+  console.log("scores", scores);
   const handleExportResults = () => {
     const csvContent = `Student ID,Score\n${
       Object.entries(scores)

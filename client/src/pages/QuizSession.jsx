@@ -94,7 +94,11 @@ const QuizSession = () => {
     socket.emit('submit_answer', {
       roomId,
       userId: userInfo._id,
-      question: questionsList[currentQuestion],
+      question: {
+        ...questionsList[currentQuestion],
+        totalQuestions: questionsList.length,
+        answer: questionsList[currentQuestion].answer
+      },
       selectedOption
     });
     

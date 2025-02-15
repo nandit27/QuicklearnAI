@@ -163,6 +163,17 @@ io.on("connection", (socket) => {
         const room = quizRooms.get(roomId);
         if (!room) return;
 
+        // Initialize answers tracking if it doesn't exist
+        if (!room.answers) {
+            room.answers = {};
+        }
+        if (!room.answers[userId]) {
+            room.answers[userId] = 0;
+        }
+        
+        // Increment answer count for this student
+        room.answers[userId]++;
+
         if (selectedOption === question.answer) {
             room.scores[userId] = (room.scores[userId] || 0) + 1;
         }
@@ -170,10 +181,12 @@ io.on("connection", (socket) => {
         // Emit updated scores to all users in the room
         io.to(roomId).emit("update_scores", { scores: room.scores });
 
-        // Check if all students have completed
+        // Get total questions count from the question object
+        const totalQuestions = question.totalQuestions || 0;
+
+        // Check if all students have completed all questions
         const allCompleted = room.students.every(studentId => {
-            const studentSocket = room.socketIds[studentId];
-            return !studentSocket || room.scores[studentId] !== undefined;
+            return room.answers[studentId] >= totalQuestions;
         });
 
         if (allCompleted) {

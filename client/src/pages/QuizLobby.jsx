@@ -25,7 +25,7 @@ const QuizLobby = () => {
     socket.emit('join_quiz_room', {
       roomId,
       userId: userInfo._id,
-      role
+      role,
     });
 
     // Listen for room updates
