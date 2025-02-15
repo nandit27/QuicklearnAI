@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,36 @@ import { ArrowLeft, Download } from 'lucide-react';
 const QuizResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { scores } = location.state || {};
+  const { scores, studentNames } = location.state || {};
+  const [studentsWithNames, setStudentsWithNames] = useState({});
+  
+  useEffect(() => {
+    // Get current user info from localStorage
+    const currentUserInfo = JSON.parse(localStorage.getItem('user-info') || '{}');
+    
+    // Create a mapping of student IDs to names
+    const studentNames = {};
+    if (scores) {
+      Object.keys(scores).forEach(id => {
+        console.log(id);
+        console.log(currentUserInfo._id);
+        if (id === currentUserInfo._id) {
+          // If this score belongs to the current user
+          studentNames[id] = currentUserInfo.username || 'Unknown';
+        } else {
+          // For other students, use a generic name with their ID
+          studentNames[id] = `Student ${id.slice(-4)}`;
+        }
+      });
+    }
+    
+    setStudentsWithNames(studentNames);
+  }, [scores]);
 
-  console.log("scores", scores);
   const handleExportResults = () => {
-    const csvContent = `Student ID,Score\n${
+    const csvContent = `Student ID,Name,Score\n${
       Object.entries(scores)
-        .map(([id, score]) => `${id},${score}`)
+        .map(([id, score]) => `${id},${studentsWithNames[id] || 'Unknown'},${score}`)
         .join('\n')
     }`;
     
@@ -44,15 +67,15 @@ const QuizResults = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="text-left py-3 px-4">Student ID</th>
+                  <th className="text-left py-3 px-4">Student Name</th>
                   <th className="text-left py-3 px-4">Score</th>
                   <th className="text-left py-3 px-4">Performance</th>
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(scores).map(([studentId, score]) => (
-                  <tr key={studentId} className="border-b border-white/5">
-                    <td className="py-4 px-4">{studentId}</td>
+                {Object.entries(scores || {}).map(([id, score]) => (
+                  <tr key={id} className="border-b border-white/5">
+                    <td className="py-4 px-4">{studentNames[id] || `Student ${id.slice(-4)}`}</td>
                     <td className="py-4 px-4">{score}</td>
                     <td className="py-4 px-4">
                       <span className={

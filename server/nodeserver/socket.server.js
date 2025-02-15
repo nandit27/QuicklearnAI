@@ -82,7 +82,8 @@ io.on("connection", (socket) => {
                     teacher: null,
                     students: [],
                     scores: {},
-                    socketIds: {}
+                    socketIds: {},
+                    studentNames: {}
                 });
             }
 
@@ -109,11 +110,16 @@ io.on("connection", (socket) => {
             redis.get(`user:${userId}`).then(userInfo => {
                 const user = userInfo ? JSON.parse(userInfo) : null;
                 
+                // Store student name
+                if (role === 'student' && user?.username) {
+                    room.studentNames[userId] = user.username;
+                }
+                
                 // Emit updated room data to all clients in the room
                 io.to(roomId).emit('room_update', {
                     students: room.students.map(studentId => ({
                         id: studentId,
-                        name: studentId === userId ? (user?.name) : 'Student',
+                        name: room.studentNames[studentId] || `Student ${studentId.slice(-4)}`,
                         score: room.scores[studentId]
                     })),
                     teacher: room.teacher
@@ -190,7 +196,10 @@ io.on("connection", (socket) => {
         });
 
         if (allCompleted) {
-            io.to(roomId).emit("final_scores", { scores: room.scores });
+            io.to(roomId).emit("final_scores", { 
+                scores: room.scores,
+                studentNames: room.studentNames
+            });
         }
     });
 
@@ -209,7 +218,10 @@ io.on("connection", (socket) => {
 
             await redis.set(roomId, JSON.stringify(resultData), "EX",3600); // Store for 1 hour
 
-            io.to(roomId).emit("final_scores", { scores: room.scores });
+            io.to(roomId).emit("final_scores", { 
+                scores: room.scores,
+                studentNames: room.studentNames
+            });
             console.log(`Quiz results stored in Redis for room ${roomId}`);
 
             quizRooms.delete(roomId); // Cleanup memory
@@ -280,7 +292,8 @@ socket.on("store_quiz", async ({ roomId, quizData, teacherId }) => {
             teacher: teacherId,
             students: [],
             scores: {},
-            socketIds: { [teacherId]: socket.id }
+            socketIds: { [teacherId]: socket.id },
+            studentNames: {}
         });
         
         // Join the socket to the room

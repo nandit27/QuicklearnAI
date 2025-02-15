@@ -63,14 +63,21 @@ const QuizSession = () => {
     });
 
     // Listen for final scores
-    socket.on('final_scores', ({ scores }) => {
+    socket.on('final_scores', ({ scores, studentNames }) => {
       if (isTeacher) {
-        navigate('/quiz-results', { state: { scores } });
+        navigate('/quiz-results', { 
+          state: { 
+            scores,
+            studentNames
+          } 
+        });
       } else {
-        navigate('/student-results', { state: { 
-          score: scores[userInfo._id],
-          total: questionsList.length 
-        }});
+        navigate('/student-results', { 
+          state: { 
+            score: scores[userInfo._id],
+            total: questionsList.length 
+          }
+        });
       }
     });
 
@@ -172,7 +179,11 @@ const QuizSession = () => {
               <h2 className="text-2xl font-semibold">
                 Question {currentQuestion + 1} of {questionsList.length}
               </h2>
-              <CircularTimer duration={30} onComplete={handleSubmitAnswer} />
+              <CircularTimer 
+                key={currentQuestion}
+                duration={30} 
+                onComplete={handleSubmitAnswer} 
+              />
             </div>
             
             <p className="text-lg">{currentQuiz.question}</p>
