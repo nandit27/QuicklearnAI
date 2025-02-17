@@ -41,19 +41,28 @@ const QuizSession = () => {
     if (location.state?.questions) {
       console.log("Received questions from state:", location.state.questions);
       
-      // Handle different question formats
-      if (location.state.questions.medium) {
-        // Format 1: {questions: {medium: [...questions]}}
-        setQuestionsList(location.state.questions.medium);
+      // Format 1: {questions: {easy/medium/hard: [...questions]}}
+      if (location.state.questions.easy || location.state.questions.medium || location.state.questions.hard) {
+        const difficulty = location.state.questions.easy ? 'easy' 
+                        : location.state.questions.medium ? 'medium'
+                        : 'hard';
+        setQuestionsList(location.state.questions[difficulty]);
         setQuestions(location.state.questions);
-      } else if (location.state.questions.questions?.medium) {
-        // Format 2: {questions: {questions: {medium: [...questions]}}}
-        setQuestionsList(location.state.questions.questions.medium);
+      } 
+      // Format 2: {questions: {questions: {easy/medium/hard: [...questions]}}}
+      else if (location.state.questions.questions?.easy || 
+               location.state.questions.questions?.medium || 
+               location.state.questions.questions?.hard) {
+        const difficulty = location.state.questions.questions.easy ? 'easy'
+                        : location.state.questions.questions.medium ? 'medium'
+                        : 'hard';
+        setQuestionsList(location.state.questions.questions[difficulty]);
         setQuestions(location.state.questions.questions);
-      } else if (Array.isArray(location.state.questions)) {
-        // Format 3: Direct array of questions
+      }
+      // Format 3: Direct array of questions
+      else if (Array.isArray(location.state.questions)) {
         setQuestionsList(location.state.questions);
-        setQuestions({ medium: location.state.questions });
+        setQuestions({ medium: location.state.questions }); // Default to medium if no difficulty specified
       }
     }
 

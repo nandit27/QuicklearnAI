@@ -77,6 +77,7 @@ const CreateQuiz = () => {
           numQuestions,
           selectedDifficulty
         );
+        console.log(quizData);
         navigate('/quiz-preview', { state: { quiz: quizData } });
       } else {
         console.log(youtubeUrl, numQuestions, selectedDifficulty);
