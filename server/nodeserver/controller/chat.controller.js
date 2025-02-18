@@ -1,29 +1,40 @@
 const { setDriver } = require("mongoose");
 const Chat = require("../models/chat.model");
 const io = require("../socket.server");
+const Doubt = require("../models/doubt.model");
+const redis = require("../redis.connection");
 
 async function joinchat(req, res) {
     try {
         const { doubtId, userId, role } = req.body;
-
-        if (!doubtId || !userId || !role) {
-            return res.status(400).json({ error: "Missing required fields" });
+        
+        // Verify doubt exists and user has permission
+        const doubt = await Doubt.findById(doubtId);
+        if (!doubt) {
+            return res.status(404).json({ error: "Doubt not found" });
         }
 
-        // Check if user is already in the chat room
-        const existingChat = await Chat.findOne({ 
-            doubtId,
-            'participants.userId': userId 
+        const hasPermission = role === 'student' ? 
+            doubt.student.toString() === userId :
+            doubt.assignedTeacher?.toString() === userId;
+
+        if (!hasPermission) {
+            return res.status(401).json({ error: "Unauthorized access" });
+        }
+
+        // Get extracted text from Redis
+        const extractedText = await redis.hget(`doubt:${doubtId}`, 'extractedText');
+
+        // Get chat history
+        const messages = await Chat.find({ doubtId }).sort({ createdAt: 1 });
+
+        res.status(200).json({ 
+            messages,
+            extractedText,
+            doubtId 
         });
-
-        if (!existingChat) {
-            // Only emit join event if user hasn't joined before
-            io.to(doubtId).emit("join_chat", { doubtId, userId, role });
-        }
-
-        res.status(200).json({ message: `${role} joined chat`, doubtId });
     } catch (error) {
-        console.error("Error in joining chat:", error);
+        console.error("Error joining chat:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 }

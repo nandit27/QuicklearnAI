@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Youtube } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import QuizDisplay from '../components/QuizDisplay';
@@ -7,6 +7,10 @@ import FlashCard from '../components/FlashCard';
 import { useToast } from "@/components/ui/use-toast";
 import { statisticsService } from '../services/api';
 import { Link } from 'react-router-dom'
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import socket from '../utils/socket';
 
 const QuizGenerator = () => {
   const { toast } = useToast();
@@ -316,99 +320,231 @@ const QuizGenerator = () => {
           </p>
         </div>
 
-        {/* Form Card */}
-        <div className="w-full max-w-2xl bg-black/40 backdrop-blur-md rounded-2xl p-8 border border-white">
-          <h2 className="text-2xl font-semibold text-center mb-8 text-[#00FF9D]">
-            Create Your Quiz
-          </h2>
-          
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
-              {error}
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* YouTube Link Input */}
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">
-                YouTube Video Link
-              </label>
-              <div className="relative">
-                <input 
-                  type="url" 
-                  value={youtubeLink}
-                  onChange={(e) => setYoutubeLink(e.target.value)}
-                  placeholder="https://youtube.com/watch?v=..."
-                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#00FF9D]/50 focus:ring-2 focus:ring-[#00FF9D]/20 transition-all duration-300"
-                />
-                <Youtube className="absolute left-3 top-3.5 h-5 w-5 text-gray-500" />
+        {/* Main Content Grid */}
+        <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Form Card */}
+          <div className="w-full bg-black/40 backdrop-blur-md rounded-2xl p-8 border border-white">
+            <h2 className="text-2xl font-semibold text-center mb-8 text-[#00FF9D]">
+              Create Your Quiz
+            </h2>
+            
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
+                {error}
               </div>
-            </div>
+            )}
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* YouTube Link Input */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">
+                  YouTube Video Link
+                </label>
+                <div className="relative">
+                  <input 
+                    type="url" 
+                    value={youtubeLink}
+                    onChange={(e) => setYoutubeLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#00FF9D]/50 focus:ring-2 focus:ring-[#00FF9D]/20 transition-all duration-300"
+                  />
+                  <Youtube className="absolute left-3 top-3.5 h-5 w-5 text-gray-500" />
+                </div>
+              </div>
 
-            {/* Number of Questions */}
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">
-                Number of Questions
-              </label>
-              <input 
-                type="number" 
-                min="1" 
-                max="20"
-                value={questionCount}
-                onChange={(e) => setQuestionCount(Number(e.target.value))}
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#00FF9D]/50 focus:ring-2 focus:ring-[#00FF9D]/20 transition-all duration-300"
-              />
-            </div>
+              {/* Number of Questions */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">
+                  Number of Questions
+                </label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="20"
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(Number(e.target.value))}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#00FF9D]/50 focus:ring-2 focus:ring-[#00FF9D]/20 transition-all duration-300"
+                />
+              </div>
 
-            {/* Difficulty Level Dropdown */}
-            <div className="space-y-2 relative">
-              <label className="text-sm text-gray-400">
-                Difficulty Level
-              </label>
+              {/* Difficulty Level Dropdown */}
+              <div className="space-y-2 relative">
+                <label className="text-sm text-gray-400">
+                  Difficulty Level
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-left text-white hover:border-[#00FF9D]/50 hover:ring-2 hover:ring-[#00FF9D]/20 transition-all duration-300"
+                >
+                  {selectedDifficulty || 'Select difficulty'}
+                </button>
+                
+                {isDropdownOpen && (
+                  <div className="absolute w-full mt-1 bg-black/90 border border-white/10 rounded-xl overflow-hidden z-10">
+                    {['Easy', 'Medium', 'Hard'].map((difficulty) => (
+                      <button
+                        key={difficulty}
+                        type="button"
+                        onClick={() => handleDifficultySelect(difficulty)}
+                        className="w-full px-4 py-3 text-left hover:bg-[#00FF9D]/10 hover:text-[#00FF9D] transition-all duration-300"
+                      >
+                        {difficulty}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Generate Button */}
               <button
-                type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-left text-white hover:border-[#00FF9D]/50 hover:ring-2 hover:ring-[#00FF9D]/20 transition-all duration-300"
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 transition-all duration-300 disabled:opacity-50 mt-4"
               >
-                {selectedDifficulty || 'Select difficulty'}
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#00FF9D] mr-2"></div>
+                    Generating Quiz...
+                  </div>
+                ) : (
+                  'Generate Quiz'
+                )}
               </button>
-              
-              {isDropdownOpen && (
-                <div className="absolute w-full mt-1 bg-black/90 border border-white/10 rounded-xl overflow-hidden z-10">
-                  {['Easy', 'Medium', 'Hard'].map((difficulty) => (
-                    <button
-                      key={difficulty}
-                      type="button"
-                      onClick={() => handleDifficultySelect(difficulty)}
-                      className="w-full px-4 py-3 text-left hover:bg-[#00FF9D]/10 hover:text-[#00FF9D] transition-all duration-300"
-                    >
-                      {difficulty}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            </form>
+          </div>
 
-            {/* Generate Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D] font-medium py-3 px-4 rounded-xl hover:bg-[#00FF9D]/20 hover:border-[#00FF9D]/50 transition-all duration-300 disabled:opacity-50 mt-4"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#00FF9D] mr-2"></div>
-                  Generating Quiz...
-                </div>
-              ) : (
-                'Generate Quiz'
-              )}
-            </button>
-          </form>
+          {/* Join Quiz Section */}
+          <div className="w-full">
+            <QuizJoinSection />
+          </div>
         </div>
       </div>
     </div>
+  );
+};
+
+const QuizJoinSection = () => {
+  const [joinCode, setJoinCode] = useState('');
+  const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const navigate = useNavigate();
+  const userInfo = JSON.parse(localStorage.getItem('user-info'));
+
+  useEffect(() => {
+    // Check if socket is connected
+    if (!socket.connected) {
+      try {
+        socket.connect();
+      } catch (error) {
+        console.error('Socket connection failed:', error);
+        setError('Connection to server failed. Please try again.');
+        setIsVerifying(false);
+      }
+    }
+
+    // Listen for room verification response
+    socket.on('room_verified', ({ exists }) => {
+      setIsVerifying(false);
+      if (exists) {
+        navigate(`/student-lobby/${joinCode}`);
+      } else {
+        setError('Invalid quiz code or quiz has expired');
+      }
+    });
+
+    // Add connection error handler
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      setError('Connection to server failed. Please try again.');
+      setIsVerifying(false);
+    });
+
+    socket.on('error', (error) => {
+      setIsVerifying(false);
+      setError(error.message || 'Failed to join quiz');
+    });
+
+    return () => {
+      socket.off('room_verified');
+      socket.off('connect_error');
+      socket.off('error');
+    };
+  }, [joinCode, navigate]);
+
+  const handleJoinQuiz = async () => {
+    try {
+      if (!joinCode.trim()) {
+        setError('Please enter a quiz code');
+        return;
+      }
+
+      if (!userInfo?._id) {
+        setError('Please login to join the quiz');
+        return;
+      }
+
+      // Check socket connection before proceeding
+      if (!socket.connected) {
+        setError('Not connected to server. Please refresh the page.');
+        return;
+      }
+
+      setError('');
+      setIsVerifying(true);
+
+      // Add timeout to prevent infinite verification
+      const timeout = setTimeout(() => {
+        setIsVerifying(false);
+        setError('Verification timeout. Please try again.');
+      }, 10000); // 10 seconds timeout
+
+      // Emit verify_room event
+      socket.emit('verify_room', {
+        roomId: joinCode,
+        userId: userInfo._id,
+        role: 'student'
+      }, () => {
+        // Clear timeout when acknowledgment is received
+        clearTimeout(timeout);
+      });
+
+    } catch (error) {
+      setIsVerifying(false);
+      setError('Failed to join quiz');
+      console.error('Quiz join error:', error);
+    }
+  };
+
+  return (
+    <Card className="bg-black/40 backdrop-blur-md border border-white/10 p-8">
+      <h2 className="text-2xl font-semibold mb-6">Join a Quiz</h2>
+      <div className="space-y-4">
+        <Input
+          type="text"
+          placeholder="Enter Quiz Code"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value)}
+          className="bg-black/20 border-white/10"
+          disabled={isVerifying}
+        />
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        <Button 
+          onClick={handleJoinQuiz}
+          className="w-full bg-[#00FF9D]/10 border border-[#00FF9D]/30 text-[#00FF9D]"
+          disabled={isVerifying}
+        >
+          {isVerifying ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#00FF9D] mr-2"></div>
+              Verifying...
+            </div>
+          ) : (
+            'Join Quiz'
+          )}
+        </Button>
+      </div>
+    </Card>
   );
 };
 

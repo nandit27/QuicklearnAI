@@ -18,78 +18,39 @@ const RecommendationPage = () => {
     return match ? match[1] : null;
   };
 
-  // Updated regex pattern to match the actual URL format in the response
-  const extractYoutubeLinks = (text) => {
-    // Find the YouTube Video Recommendations section
-    const lines = text.split('\n');
+  // Updated function to extract YouTube video links from the new response format
+  const extractYoutubeLinks = (data) => {
     const videos = [];
     
-    let currentTitle = '';
-    let currentDescription = '';
-    
-    lines.forEach(line => {
-      if (line.match(/^\d+\./)) {
-        // This is a title line with description in parentheses
-        const titleMatch = line.match(/^\d+\.\s+"([^"]+)"/);
-        const descMatch = line.match(/\(([^)]+)\)/);
-        
-        if (titleMatch) {
-          currentTitle = titleMatch[1];
-          currentDescription = descMatch ? descMatch[1] : '';
-        }
-      } else if (line.includes('youtube.com/watch?v=')) {
-        // Extract URL from the line
-        const urlMatch = line.match(/(https:\/\/www\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]+)/);
-        if (urlMatch && currentTitle) {
-          const url = urlMatch[1];
+    // Iterate through each topic in the recommendations
+    Object.entries(data).forEach(([topic, content]) => {
+      if (content.youtube_links) {
+        content.youtube_links.forEach((url) => {
           const videoId = extractVideoId(url);
           if (videoId) {
             videos.push({
-              title: currentTitle,
+              title: topic, // Using topic as title
               url: url,
               thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-              description: currentDescription
+              description: content.overview // Using overview as description
             });
           }
-        }
+        });
       }
     });
     
     return videos;
   };
 
-  // Extract text content excluding video section
-  const extractTextContent = (text) => {
-    const videoIndex = text.indexOf('Recommended YouTube Videos');
-    return videoIndex !== -1 ? text.substring(0, videoIndex) : text;
-  };
-
-  // New function to parse and structure the text content
-  const parseTextContent = (text) => {
+  // Updated function to extract and format text content
+  const parseTextContent = (data) => {
     const sections = {};
-    let currentSection = '';
     
-    text.split('\n\n').forEach(paragraph => {
-      // Check if paragraph is a section header
-      if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
-        currentSection = paragraph.replace(/\*\*/g, '');
-        sections[currentSection] = [];
-      } else if (currentSection) {
-        // Clean up bullet points and formatting
-        const cleanParagraph = paragraph
-          .replace(/\*\*/g, '')
-          .split('\n')
-          .map(line => {
-            // Replace * with custom markers
-            if (line.trim().startsWith('*')) {
-              return '→' + line.trim().substring(1);
-            }
-            return line.trim();
-          })
-          .filter(line => line.length > 0);
-        
-        sections[currentSection].push(...cleanParagraph);
-      }
+    Object.entries(data).forEach(([topic, content]) => {
+      sections[topic] = [
+        content.overview,
+        content.recommendations
+      ].filter(Boolean); // Remove any null/undefined values
     });
     
     return sections;
@@ -101,9 +62,8 @@ const RecommendationPage = () => {
         setLoading(true);
         const response = await recommendationService.getRecommendations();
         const extractedVideos = extractYoutubeLinks(response.recommendations);
-        const extractedText = extractTextContent(response.recommendations);
         setVideos(extractedVideos);
-        setTextContent(extractedText);
+        setTextContent(response.recommendations);
       } catch (error) {
         console.error('Failed to fetch recommendations:', error);
         setError(error.message);
@@ -145,20 +105,24 @@ const RecommendationPage = () => {
           {Object.entries(parseTextContent(textContent)).map(([section, points], index) => (
             <div key={index} className="bg-zinc-900/50 rounded-xl p-8 backdrop-blur-sm border border-zinc-800/50">
               <h2 className="text-2xl font-bold text-[#00FF9D] mb-6">{section}</h2>
-              <div className="space-y-4">
-                {points.map((point, idx) => {
-                  if (point.startsWith('→')) {
-                    return (
-                      <div key={idx} className="flex items-start space-x-3">
-                        <div className="text-[#00FF9D]">→</div>
-                        <p className="text-gray-300 leading-relaxed">{point.substring(1)}</p>
+              <div className="space-y-6">
+                {points.map((point, idx) => (
+                  <div key={idx} className="prose prose-invert max-w-none">
+                    {idx === 0 ? (
+                      // Overview section
+                      <div className="bg-zinc-800/30 rounded-lg p-6 border border-zinc-700/30">
+                        <h3 className="text-lg font-medium text-[#00FF9D] mb-3">Overview</h3>
+                        <p className="text-gray-300 leading-relaxed">{point}</p>
                       </div>
-                    );
-                  }
-                  return (
-                    <p key={idx} className="text-gray-300 leading-relaxed">{point}</p>
-                  );
-                })}
+                    ) : (
+                      // Recommendations section
+                      <div className="bg-zinc-800/30 rounded-lg p-6 border border-zinc-700/30">
+                        <h3 className="text-lg font-medium text-[#00FF9D] mb-3">Learning Path</h3>
+                        <p className="text-gray-300 leading-relaxed">{point}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           ))}

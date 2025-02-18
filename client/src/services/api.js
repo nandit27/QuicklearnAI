@@ -451,3 +451,29 @@ export const teacherService = {
         }
     }
 };
+
+export const quizRoomService = {
+  createQuiz: async (topic, numQuestions, difficulty) => {
+    try {
+      const userInfo = localStorage.getItem('user-info');
+      if (!userInfo) {
+        throw new Error('User not authenticated');
+      }
+
+      const { token } = JSON.parse(userInfo);
+      const response = await api.post('/llm_quiz', {
+        topic,
+        num_questions:numQuestions,
+        difficulty
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) { 
+      console.error('Create quiz error:', error);
+      throw error;
+    }
+  }
+};

@@ -17,6 +17,14 @@ import MindMap from './pages/MindMap'
 import DoubtCreation from './components/DoubtCreation'
 import ChatRoom from './components/ChatRoom'
 import MatchedTeachers from './components/MatchedTeachers'
+import CreateQuiz from './pages/CreateQuiz'
+import QuizSession from './pages/QuizSession'
+import QuizPreview from './pages/QuizPreview'
+import QuizPreviewNew from './pages/QuizPreviewNew'
+import QuizLobby from './pages/QuizLobby'
+import QuizResults from './pages/QuizResults'
+import StudentResults from './pages/StudentResults'
+import StudentLobby from './pages/StudentLobby'
 
 function Home() {
   const contentRef = useRef()
@@ -96,6 +104,14 @@ function App() {
           <Route path="/doubt/create" element={<DoubtCreation />} />
           <Route path="/doubt/:doubtId/chat" element={<ChatRoom/>} />
           <Route path="/doubt/:doubtId/matched" element={<MatchedTeachers />} />
+          <Route path="/create-quiz" element={<CreateQuiz />} />
+          <Route path="/quiz-session/:roomId" element={<QuizSession />} />
+          <Route path="/quiz-preview" element={<QuizPreview />} />
+          <Route path="/quiz-preview-new" element={<QuizPreviewNew />} />
+          <Route path="/quiz-lobby/:roomId" element={<QuizLobby />} />
+          <Route path="/quiz-results" element={<QuizResults />} />
+          <Route path="/student-results" element={<StudentResults />} />
+          <Route path="/student-lobby/:roomId" element={<StudentLobby />} />
         </Routes>
         
         <LoginModal 

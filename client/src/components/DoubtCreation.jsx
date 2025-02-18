@@ -19,11 +19,15 @@ const DoubtCreation = () => {
       const response = await userService.uploadImage(file);
       console.log("Upload response:", response);
 
+      if (response.file?.extractedText) {
+        localStorage.setItem(`doubt:${response.doubtId}:text`, response.file.extractedText);
+      }
+  
       // Match with teacher if doubtId is returned
       if (response.doubtId) {
         const matchResponse = await userService.matchDoubt(response.doubtId);
         console.log("Match response:", matchResponse);
-
+  
         // Navigate with matched data
         navigate(`/doubt/${response.doubtId}/matched`, {
           state: {
