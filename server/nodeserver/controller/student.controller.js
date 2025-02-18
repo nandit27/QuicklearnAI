@@ -190,7 +190,7 @@ async function uploadFile(req, res) {
         //         doubtId: doubt._id
         //     });
         // }
-
+        await redis.hset(`doubt:${doubt._id}`, 'extractedText', text);
         res.status(200).json({
             message: "File uploaded successfully",
             doubtId: doubt._id,

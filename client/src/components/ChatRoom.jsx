@@ -10,8 +10,17 @@ const ChatRoom = () => {
   const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [extractedText, setExtractedText] = useState('');
   const messagesEndRef = useRef(null);
   const userInfo = JSON.parse(localStorage.getItem('user-info'));
+
+  useEffect(() => {
+    // Get extracted text from localStorage when component mounts
+    const storedText = localStorage.getItem(`doubt:${doubtId}:text`);
+    if (storedText) {
+      setExtractedText(storedText);
+    }
+  }, [doubtId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,8 +34,20 @@ const ChatRoom = () => {
     const initializeChat = async () => {
       try {
         // Join chat via API only once
-        await chatService.joinChat(doubtId, userInfo._id, userInfo.role);
+        const chatData = await chatService.joinChat(doubtId, userInfo._id, userInfo.role);
         
+        // Set messages from chat history
+        setMessages(chatData.messages);
+        
+        // Set extracted text from server response or localStorage
+        const storedText = localStorage.getItem(`doubt:${doubtId}:text`);
+        setExtractedText(chatData.extractedText || storedText || '');
+        
+        // If we got text from server but not in localStorage, store it
+        if (chatData.extractedText && !storedText) {
+          localStorage.setItem(`doubt:${doubtId}:text`, chatData.extractedText);
+        }
+
         // Join socket room only once
         socket.emit('join_chat', {
           doubtId,
@@ -34,13 +55,9 @@ const ChatRoom = () => {
           role: userInfo.role
         });
 
-        // Load chat history
-        const chatHistory = await chatService.getChatHistory(doubtId);
-        setMessages(chatHistory);
         scrollToBottom();
-
         setIsConnected(true);
-        setHasJoined(true); // Mark as joined
+        setHasJoined(true);
       } catch (error) {
         console.error('Error initializing chat:', error);
         setError(error.message || 'Failed to join chat');
@@ -55,7 +72,7 @@ const ChatRoom = () => {
         socket.emit('leave_chat', { doubtId, userId: userInfo._id });
       }
     };
-  }, [doubtId, userInfo, hasJoined]); // Add hasJoined to dependencies
+  }, [doubtId, userInfo, hasJoined]);
 
   // Separate useEffect for socket event listeners
   useEffect(() => {
@@ -95,6 +112,14 @@ const ChatRoom = () => {
   return (
     <div className="min-h-screen bg-black text-white pt-24">
       <div className="max-w-4xl mx-auto p-8">
+        {/* Extracted Text Section */}
+        {extractedText && (
+          <div className="mb-8 p-4 bg-black/40 backdrop-blur-md rounded-xl border border-white/10">
+            <h3 className="text-[#00FF9D] mb-2">Question Text</h3>
+            <p className="text-gray-300 whitespace-pre-wrap">{extractedText}</p>
+          </div>
+        )}
+
         <div className="bg-black/40 backdrop-blur-md rounded-xl border border-white/10 p-8">
           {error && (
             <div className="text-red-500 mb-4">{error}</div>

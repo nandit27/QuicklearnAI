@@ -1,6 +1,10 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
+from threading import Thread
+import pyttsx3
+import html
+from bs4 import BeautifulSoup
 from flask_cors import CORS 
 import re
 import json
@@ -317,6 +321,9 @@ groq_sys_prompt = ChatPromptTemplate.from_template(
     "You are very smart at everything, you always give the best, the most accurate and most precise answers. "
     "Answer the following questions: {user_prompt}. Add more information as per your knowledge so that user can get proper knowledge, but make sure information is correct"
 )
+import threading
+import time
+
 
 embedding_model = SentenceTransformer('multi-qa-mpnet-base-cos-v1')  # Pre-trained model for embeddings
 dimension = embedding_model.get_sentence_embedding_dimension()
@@ -334,18 +341,69 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="pdf_documents")
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class TextToSpeechManager:
+    def __init__(self):
+        self.lock = threading.Lock()
+    
+    def speak(self, text):
+        try:
+            with self.lock:  # Ensure only one speech operation happens at a time
+                engine = None
+                try:
+                    engine = pyttsx3.init()
+                    engine.setProperty('rate', 150)
+                    engine.setProperty('volume', 1.0)
+                    engine.say(text)
+                    engine.runAndWait() 
+                    print("spoke")
+                    engine.startLoop(False)  # Start the event loop without blocking
+                    engine.iterate()  # Process queued commands
+                    engine.endLoop()  # End the event loop
+                    logger.info("Speech completed successfully")
+                finally:
+                    if engine:
+                        try:
+                            engine.stop()
+                        except:
+                            pass
+                        del engine
+        except Exception as e:
+            logger.error(f"Text-to-speech error: {str(e)}")
+            
+    def start_speaking(self, text):
+        """Start a new thread for speaking"""
+        thread = Thread(target=self.speak, args=(text,))
+        thread.daemon = True  # Make thread daemon so it doesn't block program exit
+        thread.start()
+        return thread
+
+# Create a global instance of the TTS manager
+tts_manager = TextToSpeechManager()
+
+def clean_response(text):
+    """Clean and format the LLM response."""
+    text = BeautifulSoup(text, "html.parser").get_text()
+    text = html.unescape(text)
+    text = re.sub(r'\n\s*\n', '\n\n', text)
+    text = re.sub(r'[^\w\s.,!?-]', '', text)
+    text = ' '.join(text.split())
+    return text
+
+def speak_text(text):
+    """Convert text to speech using the TTS manager."""
+    tts_manager.speak(text)
+
 def extract_text_from_pdf(pdf_file):
     reader = PdfReader(pdf_file)
     return " ".join(page.extract_text() for page in reader.pages if page.extract_text())
 
 def extract_text_from_pptx(pptx_path):
     prs = Presentation(pptx_path)
-    text = []
-    for slide in prs.slides:
-        for shape in slide.shapes:
-            if hasattr(shape, "text"):  
-                text.append(shape.text)
-    return " ".join(text)  
+    text = [shape.text for slide in prs.slides for shape in slide.shapes if hasattr(shape, "text")]
+    return " ".join(text)
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
@@ -378,17 +436,120 @@ def upload_file():
         return jsonify({"message": "File uploaded and processed successfully."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/test-audio", methods=["GET"])
+def test_audio():
+    try:
+        test_text = "This is a test of the text to speech system"
+        logger.info("Testing text-to-speech with test message")
+        
+        # Start speech in a new thread
+        speech_thread = tts_manager.start_speaking(test_text)
+        
+        return jsonify({
+            "message": "Audio test initiated",
+            "test_text": test_text,
+            "status": "Speech initiated"
+        })
+    except Exception as e:
+        logger.error(f"Audio test failed: {str(e)}")
+        return jsonify({
+            "error": "Audio test failed",
+            "details": str(e)
+        }), 500
+
 @app.route("/query", methods=["POST"])
 def query_file():
-    data = request.get_json()
-    query = data.get("query", "")
-    query_embedding = model.encode(query).tolist()
-    results = collection.query(query_embeddings=[query_embedding], n_results=3)
-    retrieved_texts = "\n".join(results["documents"][0])
-    response = genai.GenerativeModel("gemini-1.5-flash").generate_content(retrieved_texts + "\nQuestion: " + query)
-    return jsonify({"answer": response.text})
+    try:
+        data = request.get_json()
+        query = data.get("query", "")
+        
+        logger.info(f"Received query: {query}")
+        
+        query_embedding = model.encode(query).tolist()
+        results = collection.query(query_embeddings=[query_embedding], n_results=3)
+        retrieved_texts = "\n".join(results["documents"][0])
+        
+        prompt = f"""
+        Based on the following context, please provide a clear and concise answer to the question.
+        If the answer cannot be found in the context, please say so.
+        
+        Context: {retrieved_texts}
+        
+        Question: {query}
+        """
+        
+        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
+        cleaned_response = clean_response(response.text)
+        
+        # Add a small delay before starting new speech
+        time.sleep(0.1)  # 100ms delay
+        
+        speech_thread = tts_manager.start_speaking(cleaned_response)
+        
+        return jsonify({
+            "answer": cleaned_response,
+            "voice_enabled": True,
+            "status": "Speech initiated"
+        })
+        
+    except Exception as e:
+        error_message = f"Error processing query: {str(e)}"
+        logger.error(error_message)
+        return jsonify({
+            "error": error_message,
+            "answer": "I apologize, but I encountered an error while processing your query. Please try again.",
+            "voice_enabled": False
+        }), 500
 
-# MindMap
+
+# # Configure text-to-speech settings (optional)
+# @app.route("/configure-voice", methods=["POST"])
+# def configure_voice():
+#     try:
+#         data = request.get_json()
+#         rate = data.get("rate", 110)  # Default speaking rate
+#         volume = data.get("volume", 1.0)  # Default volume
+#         voice_id = data.get("voice_id")  # Voice identifier
+        
+#         engine.setProperty('rate', rate)
+#         engine.setProperty('volume', volume)
+        
+#         if voice_id:
+#             voices = engine.getProperty('voices')
+#             for voice in voices:
+#                 if voice.id == voice_id:
+#                     engine.setProperty('voice', voice.id)
+#                     break
+        
+#         return jsonify({"message": "Voice settings updated successfully"}), 200
+#     except Exception as e:
+#         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
+
+# Configure text-to-speech settings (optional)
+# @app.route("/configure-voice", methods=["POST"])
+# def configure_voice():
+#     try:
+#         data = request.get_json()
+#         rate = data.get("rate", 110)  # Default speaking rate
+#         volume = data.get("volume", 1.0)  # Default volume
+#         voice_id = data.get("voice_id")  # Voice identifier
+        
+#         engine.setProperty('rate', rate)
+#         engine.setProperty('volume', volume)
+        
+#         if voice_id:
+#             voices = engine.getProperty('voices')
+#             for voice in voices:
+#                 if voice.id == voice_id:
+#                     engine.setProperty('voice', voice.id)
+#                     break
+        
+#         return jsonify({"message": "Voice settings updated successfully"}), 200
+#     except Exception as e:
+#         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
+#         return jsonify({"error": f"Error configuring voice: {str(e)}"}), 500
+# # MindMap
 
 def fetch_youtube_transcript(video_url):
     try:
@@ -451,6 +612,64 @@ def generate_mind_map_endpoint():
    
     return jsonify(mind_map)
 
+llm = ChatGroq(
+    model="llama-3.3-70b-specdec",
+    temperature=0,
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+)
+
+def generate_quiz(topic: str, num_questions: int, difficulty: str):
+    """Generate a quiz based on the given topic."""
+    prompt = f"""
+    Create a quiz on the topic: "{topic}". Generate {num_questions} multiple-choice questions.
+    The questions should be of {difficulty} difficulty.
+    Format the output strictly in JSON format as follows:
+    
+    {{
+       
+        "questions": {{
+            "{difficulty}": [
+                {{
+                    "question": "What is ...?",
+                    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+                    "answer": "Option 1"
+                }}
+            ]
+        }}
+    }}
+    """
+    response = llm.invoke(prompt)
+    return response.content if hasattr(response, 'content') else response.text
+
+@app.route("/llm_quiz", methods=["POST"])
+def quiz_endpoint():
+    data = request.json
+    topic = data.get("topic")
+    num_questions = data.get("num_questions")
+    difficulty = data.get("difficulty")
+    
+    if not topic:
+        return jsonify({"error": "Topic is required"}), 400
+    
+    try:
+        response_content = generate_quiz(topic, num_questions, difficulty)
+
+        
+        try:
+            result = json.loads(response_content)
+        except json.JSONDecodeError:
+            json_start = response_content.find('{')
+            json_end = response_content.rfind('}') + 1
+            if json_start != -1 and json_end != -1:
+                json_str = response_content[json_start:json_end]
+                result = json.loads(json_str)
+            else:
+                return jsonify({"error": "Could not parse JSON from response"}), 500
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 
@@ -483,34 +702,7 @@ def generate_quiz(topic: str, num_questions: int, difficulty: str):
     response = llm.invoke(prompt)
     return response.content if hasattr(response, 'content') else response.text
 
-@app.route("/llm_quiz", methods=["POST"])
-def quiz_endpoint():
-    data = request.json
-    topic = data.get("topic")
-    num_questions = data.get("num_questions", 5)
-    difficulty = data.get("difficulty", "medium").lower()
-    print("Topic:", topic,"num_questions:",num_questions,"difficulty:",difficulty)
-    
-    if not topic:
-        return jsonify({"error": "Topic is required"}), 400
-    
-    try:
-        response_content = generate_quiz(topic, num_questions, difficulty)
-        
-        try:
-            result = json.loads(response_content)
-        except json.JSONDecodeError:
-            json_start = response_content.find('{')
-            json_end = response_content.rfind('}') + 1
-            if json_start != -1 and json_end != -1:
-                json_str = response_content[json_start:json_end]
-                result = json.loads(json_str)
-            else:
-                return jsonify({"error": "Could not parse JSON from response"}), 500
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/', methods=['GET'])
 def health():
